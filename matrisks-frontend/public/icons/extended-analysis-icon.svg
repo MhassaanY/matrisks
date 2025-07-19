@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" fill="none"/>
+  <!-- Computer with shield and Android -->
+  <rect x="20" y="25" width="50" height="40" rx="4" fill="#4CAF50" opacity="0.2"/>
+  <rect x="20" y="25" width="50" height="40" rx="4" stroke="#4CAF50" stroke-width="3"/>
+  <line x1="20" y1="60" x2="70" y2="60" stroke="#4CAF50" stroke-width="3"/>
+  <rect x="35" y="65" width="20" height="10" fill="#4CAF50" opacity="0.2"/>
+  <rect x="35" y="65" width="20" height="10" stroke="#4CAF50" stroke-width="3"/>
+  <line x1="30" y1="75" x2="60" y2="75" stroke="#4CAF50" stroke-width="3"/>
+  
+  <!-- Shield with Android -->
+  <path d="M85 25C85 25 75 30 65 30C55 30 45 25 45 25V60C45 65 50 75 65 80C80 75 85 65 85 60V25Z" fill="#4CAF50" opacity="0.2" stroke="#4CAF50" stroke-width="3"/>
+  
+  <!-- Android in Shield -->
+  <circle cx="65" cy="45" r="10" fill="#4CAF50" opacity="0.3"/>
+  <path d="M60 43a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill="#4CAF50"/>
+  <path d="M70 43a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z" fill="#4CAF50"/>
+  <path d="M72 48c0 3.9-3.1 7-7 7s-7-3.1-7-7v-3h14v3z" fill="none" stroke="#4CAF50" stroke-width="2"/>
+  
+  <!-- Checkmark -->
+  <path d="M75 38l-8 8-4-4" stroke="#FFC107" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+</svg> 

@@ -1,0 +1,421 @@
+/* Theme variables */
+:root {
+  --dark-bg: #121212;
+  --dark-card-bg: rgba(30, 30, 30, 0.7);
+  --dark-text: #ffffff;
+  --dark-text-secondary: #b0b0b0;
+  --dark-border: rgba(255, 255, 255, 0.1);
+  --light-bg: #f5f7fa;
+  --light-card-bg: rgba(255, 255, 255, 0.9);
+  --light-text: #333333;
+  --light-text-secondary: #666666;
+  --light-border: rgba(0, 0, 0, 0.1);
+  --transition-bezier: cubic-bezier(0.4, 0, 0.2, 1);
+  --entrance-delay: 0.2s;
+  
+  /* Colors */
+  --primary-color: #4a90e2;
+  --success-color: #4caf50;
+  --error-color: #f44336;
+  --warning-color: #ff9800;
+  --info-color: #2196f3;
+}
+
+/* Admin wrapper */
+.adminWrapper {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Inter', 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #121212 0%, #1a1a1a 100%);
+  color: var(--dark-text);
+  position: relative;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.adminWrapper.visible {
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.6s var(--transition-bezier),
+              transform 0.6s var(--transition-bezier);
+}
+
+/* Particle Background */
+.particleBackground {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+  background: 
+    radial-gradient(circle at 20% 30%, rgba(74, 144, 226, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 70%, rgba(156, 39, 176, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(255, 152, 0, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 30% 80%, rgba(229, 57, 53, 0.1) 0%, transparent 50%);
+  animation: particleMove 20s ease-in-out infinite;
+}
+
+@keyframes particleMove {
+  0% { transform: translate(0, 0); }
+  25% { transform: translate(-5px, 5px); }
+  50% { transform: translate(5px, -5px); }
+  75% { transform: translate(-5px, -5px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* Navbar styles */
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  background: rgba(20, 20, 20, 0.8);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--dark-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.navbarLeft {
+  flex: 1;
+}
+
+.navbarCenter {
+  flex: 2;
+  text-align: center;
+}
+
+.dashboardTitle {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--dark-text);
+  background: linear-gradient(135deg, var(--dark-text) 0%, rgba(255, 255, 255, 0.8) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.navbarRight {
+  flex: 1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 2rem;
+}
+
+.navLink {
+  color: var(--dark-text-secondary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s var(--transition-bezier);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  padding: 0.5rem 0;
+}
+
+.navLink:hover {
+  color: var(--dark-text);
+}
+
+/* Admin container */
+.adminContainer {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* Admin controls */
+.adminControls {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.sectionButton {
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  background: rgba(40, 40, 40, 0.6);
+  color: var(--dark-text-secondary);
+  border: 1px solid var(--dark-border);
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s var(--transition-bezier);
+  flex: 1;
+  text-align: center;
+}
+
+.sectionButton:hover {
+  background: rgba(60, 60, 60, 0.8);
+  color: var(--dark-text);
+}
+
+.sectionButton.active {
+  background: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+/* Admin card */
+.adminCard {
+  background: var(--dark-card-bg);
+  backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid var(--dark-border);
+  padding: 2rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  animation: fadeInUp 0.6s var(--transition-bezier) forwards;
+  animation-delay: var(--entrance-delay);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.sectionTitle {
+  font-size: 1.8rem;
+  font-weight: 600;
+  margin: 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--dark-border);
+}
+
+/* Table styles */
+.tableContainer {
+  overflow-x: auto;
+  margin-top: 1rem;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.dataTable th {
+  background: rgba(40, 40, 40, 0.6);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--dark-text);
+  border-bottom: 2px solid var(--dark-border);
+}
+
+.dataTable td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--dark-border);
+  color: var(--dark-text-secondary);
+}
+
+.dataTable tr:hover td {
+  background: rgba(40, 40, 40, 0.4);
+  color: var(--dark-text);
+}
+
+/* Status indicators */
+.status {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.active {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.inactive {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+}
+
+.maintenance {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+}
+
+/* Message styles */
+.message {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+.success {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+}
+
+.error {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+}
+
+.info {
+  background: rgba(33, 150, 243, 0.2);
+  color: #2196f3;
+  border: 1px solid rgba(33, 150, 243, 0.3);
+}
+
+.warning {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+  border: 1px solid rgba(255, 152, 0, 0.3);
+}
+
+/* Loading and no data states */
+.loading, .noData {
+  text-align: center;
+  padding: 2rem;
+  color: var(--dark-text-secondary);
+  font-style: italic;
+}
+
+/* Refresh container */
+.refreshContainer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.refreshButton {
+  background: transparent;
+  border: 1px solid var(--dark-border);
+  color: var(--dark-text);
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s var(--transition-bezier);
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.refreshButton:hover {
+  background: rgba(60, 60, 60, 0.8);
+  border-color: var(--primary-color);
+}
+
+.refreshButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Delete user buttons */
+.deleteBtn {
+  background: rgba(244, 67, 54, 0.2);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  padding: 0.4rem 0.75rem;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s var(--transition-bezier);
+  font-size: 0.85rem;
+}
+
+.deleteBtn:hover {
+  background: rgba(244, 67, 54, 0.4);
+}
+
+.deleteBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.confirmDelete {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.confirmDelete span {
+  font-size: 0.85rem;
+  color: var(--dark-text);
+}
+
+.confirmBtn {
+  background: rgba(244, 67, 54, 0.3);
+  color: #f44336;
+  border: 1px solid rgba(244, 67, 54, 0.4);
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.cancelBtn {
+  background: rgba(40, 40, 40, 0.6);
+  color: var(--dark-text);
+  border: 1px solid var(--dark-border);
+  padding: 0.3rem 0.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+  .adminContainer {
+    padding: 1.5rem 1rem;
+  }
+  
+  .adminControls {
+    flex-direction: column;
+  }
+  
+  .sectionButton {
+    width: 100%;
+  }
+  
+  .adminCard {
+    padding: 1.5rem;
+  }
+  
+  .dataTable {
+    font-size: 0.85rem;
+  }
+  
+  .dataTable th, .dataTable td {
+    padding: 0.6rem 0.75rem;
+  }
+  
+  .confirmDelete {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.3rem;
+  }
+  
+  .confirmDelete button {
+    width: 100%;
+  }
+}

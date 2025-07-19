@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" fill="none"/>
+  
+  <!-- Android Robot with Lightning -->
+  <circle cx="60" cy="60" r="30" fill="#FF9800" opacity="0.1" stroke="#FF9800" stroke-width="2"/>
+  
+  <!-- Android Robot -->
+  <circle cx="60" cy="55" r="15" fill="#FF9800" opacity="0.2"/>
+  <path d="M52 52a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="#FF9800"/>
+  <path d="M68 52a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="#FF9800"/>
+  <path d="M70 60c0 5.5-4.5 10-10 10s-10-4.5-10-10v-5h20v5z" fill="none" stroke="#FF9800" stroke-width="2"/>
+  <path d="M70 55h3v10m-26-10h-3v10" stroke="#FF9800" stroke-width="2"/>
+  
+  <!-- Gear icon -->
+  <circle cx="60" cy="60" r="25" fill="none" stroke="#FF9800" stroke-width="1.5" stroke-dasharray="3 5"/>
+  <path d="M60 40v-8M60 88v-8M40 60h-8M88 60h-8M50 50l-5.6-5.6M75.6 75.6L70 70M70 50l5.6-5.6M44.4 75.6L50 70" stroke="#FF9800" stroke-width="1.5"/>
+  
+  <!-- Lightning Bolt -->
+  <path d="M85 45L65 60H75L55 85L60 65H50L65 45H85Z" fill="#FFC107" opacity="0.9" stroke="#FFC107"/>
+</svg> 

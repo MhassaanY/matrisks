@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" fill="none"/>
+  <!-- Computer monitor with Android icon -->
+  <rect x="20" y="20" width="80" height="60" rx="4" fill="#2196F3" opacity="0.2"/>
+  <rect x="20" y="20" width="80" height="60" rx="4" stroke="#2196F3" stroke-width="3"/>
+  <line x1="20" y1="70" x2="100" y2="70" stroke="#2196F3" stroke-width="3"/>
+  <rect x="50" y="80" width="20" height="10" fill="#2196F3" opacity="0.2"/>
+  <rect x="50" y="80" width="20" height="10" stroke="#2196F3" stroke-width="3"/>
+  <line x1="40" y1="90" x2="80" y2="90" stroke="#2196F3" stroke-width="3"/>
+  
+  <!-- Android Logo -->
+  <circle cx="60" cy="45" r="15" fill="#2196F3" opacity="0.3"/>
+  <path d="M52 42a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="#2196F3"/>
+  <path d="M68 42a2 2 0 1 0 0-4 2 2 0 0 0 0 4z" fill="#2196F3"/>
+  <path d="M70 50c0 5.5-4.5 10-10 10s-10-4.5-10-10v-5h20v5z" fill="none" stroke="#2196F3" stroke-width="2"/>
+  <path d="M70 45h3v10m-26-10h-3v10" stroke="#2196F3" stroke-width="2"/>
+  
+  <!-- Star/Sparkle icon -->
+  <path d="M85 32l1.5 3 3.5.5-2.5 2.5.5 3.5-3-1.5-3 1.5.5-3.5-2.5-2.5 3.5-.5z" fill="#FFC107" stroke="#FFC107"/>
+</svg> 
