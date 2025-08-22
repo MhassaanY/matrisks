@@ -75,8 +75,8 @@ const Admin = () => {
     try {
       setLoading(true);
       await deleteUser(userId);
-      // Remove user from the list
-      setUsers(users.filter(u => u.id !== userId));
+      // Refresh the user list
+      fetchUsers();
       setMessage({ type: 'success', text: 'User deleted successfully' });
       setConfirmDelete(null);
     } catch (error) {

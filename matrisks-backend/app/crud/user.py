@@ -3,7 +3,7 @@ from sqlalchemy import or_
 from app.models import User
 from app.schemas import UserCreate
 from app.services.auth import hash_password
-from typing import Optional
+from typing import List, Optional
 
 def get_by_email(db: Session, email: str) -> Optional[User]:
     """
@@ -58,6 +58,35 @@ def get_by_id(db: Session, user_id: int) -> Optional[User]:
         User object or None if not found
     """
     return db.query(User).filter(User.id == user_id).first()
+
+def get_all_users(db: Session) -> List[User]:
+    """
+    Get all users
+    
+    Args:
+        db: Database session
+        
+    Returns:
+        List of all user objects
+    """
+    return db.query(User).all()
+
+def delete_user(db: Session, user_id: int) -> Optional[User]:
+    """
+    Delete a user by ID
+    
+    Args:
+        db: Database session
+        user_id: User's ID
+        
+    Returns:
+        Deleted User object or None if not found
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if user:
+        db.delete(user)
+        db.commit()
+    return user
 
 def create_user(db: Session, user_data: UserCreate) -> User:
     """

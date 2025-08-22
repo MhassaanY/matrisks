@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth
+from app.routers import auth, admin
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 from app.database import Base, engine, SessionLocal
@@ -30,6 +30,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(auth.router)
+app.include_router(admin.router)
 
 # Root endpoint
 @app.get("/")
