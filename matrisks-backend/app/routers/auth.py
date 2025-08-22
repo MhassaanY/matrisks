@@ -158,7 +158,7 @@ async def login(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=True,  # Only send over HTTPS
+        secure=False,  # For local development; set True in production
         samesite="lax",  # CSRF protection
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # in seconds
     )
@@ -229,7 +229,7 @@ async def refresh_token(
             key="refresh_token",
             value=new_refresh_token,
             httponly=True,
-            secure=True,
+            secure=False,
             samesite="lax",
             max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         )
@@ -261,8 +261,12 @@ async def logout(response: Response):
     response.delete_cookie(
         key="refresh_token",
         httponly=True,
-        secure=True,
+        secure=False,
         samesite="lax"
     )
     
     return {"detail": "Successfully logged out"}
+
+@router.get("/me", response_model=UserOut)
+async def me(current_user: UserOut = Depends(get_current_user)):
+    return current_user

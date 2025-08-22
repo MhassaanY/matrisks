@@ -5,22 +5,17 @@
 
 // Base URL for API calls
 const API_BASE_URL = (() => {
-  // In development, use the Vite environment variable
   if (import.meta.env?.VITE_API_BASE_URL) {
     return import.meta.env.VITE_API_BASE_URL;
   }
-  // In production, use relative URL if not specified
-  return '/api';
+  return 'http://localhost:8000';
 })();
 
 // Check if we should use mock data
 const USE_MOCK_DATA = (() => {
-  // If explicitly set to false, don't use mock data
   if (import.meta.env?.VITE_USE_MOCK_DATA === 'false') return false;
-  // If explicitly set to true, use mock data
   if (import.meta.env?.VITE_USE_MOCK_DATA === 'true') return true;
-  // Default to true in development, false in production
-  return import.meta.env?.DEV;
+  return true; // default to true so non-auth features still work via mock
 })();
 
 console.log('API Configuration:', {
@@ -37,8 +32,8 @@ console.log('API Configuration:', {
  * @returns {Promise<Object>} - Response data
  */
 async function apiRequest(endpoint, options = {}) {
-  // If using mock data, return mock responses
-  if (USE_MOCK_DATA) {
+  // If using mock data and not an auth endpoint, return mock responses
+  if (USE_MOCK_DATA && !endpoint.startsWith('/auth')) {
     console.log('Using mock data for endpoint:', endpoint);
     return getMockResponse(endpoint, options);
   }
@@ -47,11 +42,13 @@ async function apiRequest(endpoint, options = {}) {
   console.log(`Making API request to: ${url}`, { options });
   
   try {
+    const token = localStorage.getItem('access_token');
     const response = await fetch(url, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         ...options.headers,
       },
       credentials: 'include', // Include cookies for authentication

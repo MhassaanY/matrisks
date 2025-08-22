@@ -26,10 +26,11 @@ class UserLogin(BaseModel):
 class UserOut(UserBase):
     id: int
     is_active: bool
+    is_superuser: bool | None = False
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class Token(BaseModel):
     access_token: str

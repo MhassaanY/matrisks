@@ -1,6 +1,0 @@
-README.md
-setup.py
-matrisks.egg-info/PKG-INFO
-matrisks.egg-info/SOURCES.txt
-matrisks.egg-info/dependency_links.txt
-matrisks.egg-info/top_level.txt

@@ -27,6 +27,7 @@ def upgrade():
         sa.Column('password_hash', sa.Text(), nullable=False),
         sa.Column('gender', sa.Text(), nullable=True),
         sa.Column('is_active', sa.Boolean(), nullable=True, server_default='true'),
+        sa.Column('is_superuser', sa.Boolean(), nullable=True, server_default='false'),
         sa.Column('created_at', sa.TIMESTAMP(), nullable=True, server_default=sa.text('NOW()')),
         sa.PrimaryKeyConstraint('id'),
         sa.UniqueConstraint('username'),

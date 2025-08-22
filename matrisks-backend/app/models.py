@@ -12,4 +12,5 @@ class User(Base):
     password_hash = Column(Text, nullable=False)
     gender = Column(Text)
     is_active = Column(Boolean, default=True)
+    is_superuser = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=sql.func.now())

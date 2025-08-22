@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('access_token');
       if (token) {
         const response = await authApi.getMe();
-        setCurrentUser(response.data);
+        setCurrentUser(response);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
@@ -34,20 +34,17 @@ export const AuthProvider = ({ children }) => {
       
       // Call the auth API with the correct parameter structure
       const response = await authApi.login({ 
-        email: username_or_email, // API uses 'email' field for both username and email
+        username_or_email,
         password 
       });
       
       console.log('Login response:', response);
-      const { access_token, refresh_token, user } = response.data;
+      const { access_token, user } = response;
       
       localStorage.setItem('access_token', access_token);
-      if (refresh_token) {
-        localStorage.setItem('refresh_token', refresh_token);
-      }
       
       setCurrentUser(user);
-      return { success: true, data: response.data };
+      return { success: true, data: response };
     } catch (error) {
       console.error('Login failed:', error);
       return { 
@@ -60,7 +57,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const response = await authApi.register(userData);
-      return { success: true, data: response.data };
+      return { success: true, data: response };
     } catch (error) {
       console.error('Registration failed:', error);
       return { 
