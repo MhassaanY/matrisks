@@ -32,8 +32,8 @@ console.log('API Configuration:', {
  * @returns {Promise<Object>} - Response data
  */
 async function apiRequest(endpoint, options = {}) {
-  // If using mock data and not an auth endpoint, return mock responses
-  if (USE_MOCK_DATA && !endpoint.startsWith('/auth')) {
+  // If using mock data, return mock responses for all endpoints
+  if (USE_MOCK_DATA) {
     console.log('Using mock data for endpoint:', endpoint);
     return getMockResponse(endpoint, options);
   }
@@ -204,7 +204,9 @@ function getMockResponse(endpoint, options) {
         // Find user by email or username
         const user = users.find(u => 
           u.email === credentials.email || 
-          u.username === credentials.email
+          u.username === credentials.email ||
+          u.username === credentials.username_or_email ||
+          u.email === credentials.username_or_email
         );
         
         if (!user || ('mock_hash_' + credentials.password) !== user.password_hash) {
@@ -218,12 +220,11 @@ function getMockResponse(endpoint, options) {
         const token = `mock_token_${user.id}_${Date.now()}`;
         const refreshToken = `mock_refresh_${user.id}_${Date.now()}`;
         
+        // Return plain object like backend would
         return resolve({
-          data: {
-            access_token: token,
-            refresh_token: refreshToken,
-            user: { ...user, password_hash: undefined }
-          }
+          access_token: token,
+          refresh_token: refreshToken,
+          user: { ...user, password_hash: undefined }
         });
       }
       
@@ -265,7 +266,8 @@ function getMockResponse(endpoint, options) {
         users.push(newUser);
         localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
         
-        return resolve({ data: { ...newUser, password_hash: undefined } });
+        // Return created user like backend would
+        return resolve({ ...newUser, password_hash: undefined });
       }
       
       if (endpoint === '/auth/me') {
@@ -295,11 +297,11 @@ function getMockResponse(endpoint, options) {
           });
         }
         
-        return resolve({ data: { ...user, password_hash: undefined } });
+        return resolve({ ...user, password_hash: undefined });
       }
       
       if (endpoint === '/auth/logout') {
-        return resolve({ data: { message: 'Logged out successfully' } });
+        return resolve({ message: 'Logged out successfully' });
       }
       
       let response;

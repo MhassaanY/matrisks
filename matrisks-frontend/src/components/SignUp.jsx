@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './SignUp.module.css';
 
 const SignUp = () => {
   const { register, error: contextError } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -114,8 +115,13 @@ const SignUp = () => {
     
     try {
       // Call register function from AuthContext
-      await register(formData);
-      // Redirect is handled in the register function
+      const result = await register(formData);
+      if (result?.success) {
+        navigate('/signin');
+        return;
+      }
+      // If not success, surface error
+      setApiError(result?.error || 'Registration failed. Please try again.');
     } catch (err) {
       console.error('Registration error:', err);
       
