@@ -57,9 +57,9 @@ pip install -r requirements.txt
 createdb matrisks
 ```
 
-5. Create a `.env` file in the backend root directory:
+5. Create a `.env` file in the backend root directory (required for persistence):
 ```
-DATABASE_URL=postgresql://postgres:postgres@localhost/matrisks
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/matrisks
 JWT_SECRET_KEY=your_secret_key_here
 ```
 
@@ -68,9 +68,10 @@ JWT_SECRET_KEY=your_secret_key_here
 alembic upgrade head
 ```
 
-7. Start the backend server:
+7. Apply migrations and start the backend server:
 ```bash
-python main.py
+alembic upgrade head
+uvicorn app.main:app --reload
 ```
 
 The API will be available at http://localhost:8000 with documentation at http://localhost:8000/docs

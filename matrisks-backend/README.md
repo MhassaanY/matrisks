@@ -31,17 +31,21 @@ createdb matrisks
 alembic upgrade head
 ```
 
-### Environment Variables
+### Environment Variables (Required for persistence)
 
-Create a `.env` file in the root directory with the following variables:
+Create a `.env` file in the backend directory with:
 ```
-DATABASE_URL=postgresql://postgres:postgres@localhost/matrisks
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/matrisks
 JWT_SECRET_KEY=your_secret_key
 ```
+
+Do not start the server with an ad-hoc SQLite URL if you want persistent data.
 
 ### Running the Development Server
 
 ```bash
+# Ensure PostgreSQL is running and .env is configured
+alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
