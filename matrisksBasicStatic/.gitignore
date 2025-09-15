@@ -1,0 +1,6 @@
+*.pyc
+*.pyo
+Reports/
+.idea/
+scanned_results/
+venv/

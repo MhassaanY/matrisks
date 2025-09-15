@@ -1,0 +1,6 @@
+
+# Third-party dependencies for matrisksBasicStatic engine
+pymongo==3.11.0
+androguard==3.3.5
+dnspython==2.0.0
+weasyprint
