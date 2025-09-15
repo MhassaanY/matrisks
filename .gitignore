@@ -9,6 +9,7 @@ matrisks-backend/.venv/
 .venv/
 venv/
 ENV/
+matrisks-backend/venv/
 
 # Environment files
 *.env
@@ -23,6 +24,9 @@ matrisks-frontend/node_modules/
 matrisks-frontend/dist/
 dist/
 build/
+
+# Generated analysis outputs
+matrisksBasicStatic/scanned_results/
 
 # IDE/editor
 .vscode/
