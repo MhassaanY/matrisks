@@ -40,9 +40,11 @@
   background: linear-gradient(135deg, #121212 0%, #1a1a1a 100%);
   color: var(--dark-text);
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   opacity: 0;
   transform: translateY(20px);
+  width: 100%;
+  max-width: none;
 }
 
 .analysisWrapper.visible {
@@ -138,10 +140,10 @@
 /* Analysis container */
 .analysisContainer {
   flex: 1;
-  max-width: 1000px;
+  max-width: none;
   width: 100%;
-  margin: 0 auto;
-  padding: 3rem 2rem;
+  margin: 0;
+  padding: 3rem 1rem;
   position: relative;
   z-index: 1;
 }
@@ -430,8 +432,8 @@
 
 /* Analysis Results */
 .resultsContainer {
-  max-width: 900px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
   background: var(--dark-card-bg);
   border-radius: 16px;
   border: 1px solid var(--dark-border);
@@ -714,5 +716,261 @@
   
   .cancelButton, .analyzeButton {
     width: 100%;
+  }
+}
+
+/* HTML Report Section */
+.htmlReportSection {
+  margin-top: 2rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  width: 100%;
+  max-width: none;
+}
+
+.htmlReportSection h3 {
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  padding: 0 1rem;
+}
+
+.htmlReportContent {
+  width: 100%;
+  min-height: 800px;
+  height: 100vh;
+  border: none;
+  background: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+}
+
+/* Style the HTML report content to be more readable */
+.htmlReportContent h1,
+.htmlReportContent h2,
+.htmlReportContent h3,
+.htmlReportContent h4,
+.htmlReportContent h5,
+.htmlReportContent h6 {
+  color: #333;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.htmlReportContent p {
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.htmlReportContent table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.htmlReportContent th,
+.htmlReportContent td {
+  border: 1px solid #ddd;
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.htmlReportContent th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.htmlReportContent ul,
+.htmlReportContent ol {
+  margin: 1rem 0;
+  padding-left: 2rem;
+}
+
+.htmlReportContent li {
+  margin-bottom: 0.5rem;
+  color: #555;
+}
+
+.htmlReportContent code {
+  background-color: #f4f4f4;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+}
+
+.htmlReportContent pre {
+  background-color: #f4f4f4;
+  padding: 1rem;
+  border-radius: 6px;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.htmlReportContent pre code {
+  background: none;
+  padding: 0;
+}
+
+/* Additional styles for new components */
+.packageInfo {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: var(--dark-card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--dark-border);
+}
+
+.packageInfo h3 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.infoGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.infoLabel {
+  font-size: 0.85rem;
+  color: var(--dark-text-secondary);
+  font-weight: 500;
+}
+
+.infoValue {
+  font-size: 0.95rem;
+  color: var(--dark-text);
+  font-weight: 600;
+}
+
+.summaryStats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.statItem {
+  text-align: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 8px;
+  border: 1px solid var(--dark-border);
+}
+
+.statNumber {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--dark-text);
+  margin-bottom: 0.25rem;
+}
+
+.statNumber.critical {
+  color: var(--critical-color);
+}
+
+.statNumber.warning {
+  color: var(--warning-color);
+}
+
+.statNumber.info {
+  color: var(--info-color);
+}
+
+.statLabel {
+  font-size: 0.8rem;
+  color: var(--dark-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.issueHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.issueType {
+  font-weight: 600;
+  color: var(--dark-text);
+}
+
+.severityBadge {
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.severityBadge.critical {
+  background: var(--critical-color);
+  color: white;
+}
+
+.severityBadge.warning {
+  background: var(--warning-color);
+  color: white;
+}
+
+.severityBadge.notice {
+  background: var(--info-color);
+  color: white;
+}
+
+.severityBadge.info {
+  background: var(--success-color);
+  color: white;
+}
+
+.issueDescription {
+  color: var(--dark-text-secondary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.fileInfo {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  background: var(--dark-card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--dark-border);
+}
+
+.fileInfo h3 {
+  color: var(--primary-color);
+  margin-bottom: 1rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+@media (max-width: 768px) {
+  .htmlReportContent {
+    padding: 1rem;
+    min-height: 400px;
+  }
+  
+  .htmlReportContent table {
+    font-size: 0.8rem;
+  }
+  
+  .htmlReportContent th,
+  .htmlReportContent td {
+    padding: 4px 6px;
   }
 }

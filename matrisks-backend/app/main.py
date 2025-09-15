@@ -1,6 +1,8 @@
+
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, admin
+from app.routers import auth, admin, analysis
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 from app.database import Base, engine, SessionLocal
@@ -15,9 +17,10 @@ app = FastAPI(
 
 # Configure CORS
 origins = [
-    "http://localhost",
     "http://localhost:5173",  # Default Vite dev server
+    "http://localhost:5174",  # Alternative port when 5173 is in use
     "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",  # Alternative port when 5173 is in use
 ]
 
 app.add_middleware(
@@ -31,6 +34,7 @@ app.add_middleware(
 # Include routers
 app.include_router(auth.router)
 app.include_router(admin.router)
+app.include_router(analysis.router)
 
 # Root endpoint
 @app.get("/")

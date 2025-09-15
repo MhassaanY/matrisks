@@ -43,14 +43,27 @@ async function apiRequest(endpoint, options = {}) {
   
   try {
     const token = localStorage.getItem('access_token');
+    
+    // Set Content-Type for JSON requests
+    const headers = {
+      'Accept': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+      ...options.headers,
+    };
+    
+    // If body is a string and looks like JSON, set Content-Type
+    if (options.body && typeof options.body === 'string' && !headers['Content-Type']) {
+      try {
+        JSON.parse(options.body);
+        headers['Content-Type'] = 'application/json';
+      } catch (e) {
+        // Not JSON, don't set Content-Type
+      }
+    }
+    
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        ...options.headers,
-      },
+      headers,
       credentials: 'include', // Include cookies for authentication
     });
 
@@ -83,11 +96,21 @@ async function apiRequest(endpoint, options = {}) {
         console.warn('Authentication required');
       }
       
-      throw new Error(
-        responseData.message || 
-        responseData.detail || 
-        `API request failed with status ${response.status}`
-      );
+      // Extract error message properly
+      let errorMessage = `API request failed with status ${response.status}`;
+      if (responseData) {
+        if (typeof responseData === 'string') {
+          errorMessage = responseData;
+        } else if (responseData.message) {
+          errorMessage = responseData.message;
+        } else if (responseData.detail) {
+          errorMessage = responseData.detail;
+        } else if (responseData.error) {
+          errorMessage = responseData.error;
+        }
+      }
+      
+      throw new Error(errorMessage);
     }
 
     return responseData;
@@ -164,19 +187,14 @@ function getMockResponse(endpoint, options) {
  * @returns {Promise<Object>} - Analysis result
  */
 export async function uploadFileForAnalysis(file, analysisType) {
-  // This will be replaced with an actual API call when FastAPI is implemented
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('analysisType', analysisType);
+  formData.append('analysis_type', analysisType);
 
-  // For now, return mock response
-  return apiRequest('/analyze', {
+  return apiRequest('/analysis/scan', {
     method: 'POST', 
-    body: formData,
-    headers: {
-      // Remove Content-Type header so boundary is set automatically for FormData
-      'Content-Type': undefined
-    }
+    body: formData
+    // Don't set Content-Type header - let the browser set it automatically for FormData
   });
 }
 
@@ -219,30 +237,53 @@ export async function getAnalysisHistory() {
  * @returns {Promise<Array>} - Available analysis types
  */
 export async function getAnalysisTypes() {
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 800));
-  
-  // Return mock data
-  return [
-    { 
-      id: 'intelligent-defense', 
-      name: 'Intelligent Defense', 
-      description: 'Our advanced AI-powered security engine identifies potential vulnerabilities and evolves with each scan, providing continuous protection.',
-      icon: '/shield-icon.svg'
-    },
-    { 
-      id: 'lightning-analysis', 
-      name: 'Lightning Analysis', 
-      description: 'Experience unprecedented speed with our optimized scanning technology that seamlessly integrates into your CI/CD pipeline.',
-      icon: '/lightning-icon.svg'
-    },
-    { 
-      id: 'actionable-insights', 
-      name: 'Actionable Insights', 
-      description: 'Transform complex security data into clear, prioritized recommendations with our intuitive dashboards and detailed reports.',
-      icon: '/magnify-icon.svg'
-    }
-  ];
+  try {
+    const response = await apiRequest('/analysis/types');
+    return response.analysis_types || [];
+  } catch (error) {
+    console.error('Error fetching analysis types:', error);
+    // Fallback to mock data if API fails
+    return [
+      { 
+        id: 'basic', 
+        name: 'Basic Analysis', 
+        description: 'Run basic file scanning & metadata extraction',
+        estimated_time: '1-2 minutes'
+      },
+      { 
+        id: 'advanced', 
+        name: 'Advanced Analysis', 
+        description: 'Perform in-depth code analysis & vulnerability scanning',
+        estimated_time: '3-5 minutes'
+      },
+      { 
+        id: 'dynamic', 
+        name: 'Dynamic Analysis', 
+        description: 'Monitor real-time behavior & detect runtime threats',
+        estimated_time: '5-10 minutes'
+      },
+      { 
+        id: 'malware', 
+        name: 'Malware Detection', 
+        description: 'Scan for malware using ML-powered detection',
+        estimated_time: '2-3 minutes'
+      }
+    ];
+  }
+}
+
+/**
+ * Get available security vectors
+ * @returns {Promise<Array>} - Available security vectors
+ */
+export async function getSecurityVectors() {
+  try {
+    const response = await apiRequest('/analysis/vectors');
+    return response.security_vectors || [];
+  } catch (error) {
+    console.error('Error fetching security vectors:', error);
+    return [];
+  }
 }
 
 /**

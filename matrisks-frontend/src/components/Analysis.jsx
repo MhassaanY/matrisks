@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { uploadFileForAnalysis } from '../services/api';
 import styles from './Analysis.module.css';
 
 const Analysis = () => {
@@ -113,7 +114,7 @@ const Analysis = () => {
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
       setError('Please select an APK file to analyze.');
@@ -124,153 +125,103 @@ const Analysis = () => {
     setIsAnalyzing(true);
     setAnalysisProgress(0);
     setAnalysisResult(null);
+    setError('');
 
-    // Simulate analysis progress
-    progressIntervalRef.current = setInterval(() => {
-      setAnalysisProgress(prev => {
-        if (prev >= 100) {
-          clearInterval(progressIntervalRef.current);
-          completeAnalysis();
-          return 100;
-        }
-        return prev + Math.random() * 5;
-      });
-    }, 500);
+    try {
+      // Simulate progress updates
+      progressIntervalRef.current = setInterval(() => {
+        setAnalysisProgress(prev => {
+          if (prev >= 85) {
+            return prev; // Stop at 85% until real analysis completes
+          }
+          return Math.min(prev + Math.random() * 4 + 1, 85); // More consistent progress
+        });
+      }, 400);
+
+      // Call the real API
+      const result = await uploadFileForAnalysis(file, analysisType.toLowerCase());
+      
+      // Clear progress interval first
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      
+      // Ensure progress reaches 100% before processing results
+      setAnalysisProgress(100);
+      
+      // Small delay to ensure progress bar shows 100%
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Process the real results
+      if (result.success) {
+        setAnalysisResult(processAnalysisResult(result));
+      } else {
+        setError(result.error || 'Analysis failed');
+      }
+    } catch (error) {
+      console.error('Analysis failed:', error);
+      setError(error.message || 'Analysis failed. Please try again.');
+    } finally {
+      setIsAnalyzing(false);
+      // Clear any remaining interval
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    }
   };
 
-  // Complete the analysis (mock)
-  const completeAnalysis = () => {
-    // Generate mock analysis result based on analysis type
-    const mockResults = {
-      basic: {
-        malwareScore: Math.floor(Math.random() * 100),
-        permissions: [
-          { name: 'READ_EXTERNAL_STORAGE', risk: 'Low' },
-          { name: 'INTERNET', risk: 'Low' },
-          { name: 'ACCESS_FINE_LOCATION', risk: 'Medium' },
-          { name: 'READ_CONTACTS', risk: 'Medium' }
-        ],
-        riskyAPIs: Math.floor(Math.random() * 5),
-        securityIssues: [
-          'Unprotected data transmission',
-          'Excessive permissions'
-        ]
-      },
-      advanced: {
-        malwareScore: Math.floor(Math.random() * 100),
-        permissions: [
-          { name: 'READ_EXTERNAL_STORAGE', risk: 'Low' },
-          { name: 'INTERNET', risk: 'Low' },
-          { name: 'ACCESS_FINE_LOCATION', risk: 'Medium' },
-          { name: 'READ_CONTACTS', risk: 'Medium' },
-          { name: 'CAMERA', risk: 'Medium' },
-          { name: 'RECORD_AUDIO', risk: 'High' }
-        ],
-        riskyAPIs: Math.floor(Math.random() * 10),
-        securityIssues: [
-          'Unprotected data transmission',
-          'Excessive permissions',
-          'Known vulnerability in library',
-          'Code obfuscation detected'
-        ],
-        networkCommunication: [
-          { domain: 'api.example.com', risk: 'Low' },
-          { domain: 'analytics.trackingservice.com', risk: 'Medium' },
-          { domain: 'suspicious-domain.com', risk: 'High' }
-        ]
-      },
-      dynamic: {
-        malwareScore: Math.floor(Math.random() * 100),
-        permissions: [
-          { name: 'READ_EXTERNAL_STORAGE', risk: 'Low' },
-          { name: 'INTERNET', risk: 'Low' },
-          { name: 'ACCESS_FINE_LOCATION', risk: 'Medium' },
-          { name: 'READ_CONTACTS', risk: 'Medium' },
-          { name: 'CAMERA', risk: 'Medium' },
-          { name: 'RECORD_AUDIO', risk: 'High' },
-          { name: 'SEND_SMS', risk: 'High' }
-        ],
-        riskyAPIs: Math.floor(Math.random() * 15),
-        securityIssues: [
-          'Unprotected data transmission',
-          'Excessive permissions',
-          'Known vulnerability in library',
-          'Code obfuscation detected',
-          'Runtime permission abuse',
-          'Data exfiltration detected'
-        ],
-        networkCommunication: [
-          { domain: 'api.example.com', risk: 'Low' },
-          { domain: 'analytics.trackingservice.com', risk: 'Medium' },
-          { domain: 'suspicious-domain.com', risk: 'High' },
-          { domain: 'malware-c2-server.net', risk: 'Critical' }
-        ],
-        behavioralAnalysis: [
-          { behavior: 'Accessing contacts', risk: 'Medium' },
-          { behavior: 'Location tracking', risk: 'Medium' },
-          { behavior: 'Camera access', risk: 'Medium' },
-          { behavior: 'Background SMS sending', risk: 'High' }
-        ]
-      },
-      malware: {
-        malwareScore: Math.floor(Math.random() * 100) + 50, // Higher probability of malware
-        permissions: [
-          { name: 'READ_EXTERNAL_STORAGE', risk: 'Low' },
-          { name: 'INTERNET', risk: 'Low' },
-          { name: 'ACCESS_FINE_LOCATION', risk: 'Medium' },
-          { name: 'READ_CONTACTS', risk: 'Medium' },
-          { name: 'CAMERA', risk: 'Medium' },
-          { name: 'RECORD_AUDIO', risk: 'High' },
-          { name: 'SEND_SMS', risk: 'High' },
-          { name: 'RECEIVE_BOOT_COMPLETED', risk: 'High' }
-        ],
-        riskyAPIs: Math.floor(Math.random() * 20),
-        securityIssues: [
-          'Unprotected data transmission',
-          'Excessive permissions',
-          'Known vulnerability in library',
-          'Code obfuscation detected',
-          'Runtime permission abuse',
-          'Data exfiltration detected',
-          'Root detection evasion',
-          'Anti-analysis techniques'
-        ],
-        networkCommunication: [
-          { domain: 'api.example.com', risk: 'Low' },
-          { domain: 'analytics.trackingservice.com', risk: 'Medium' },
-          { domain: 'suspicious-domain.com', risk: 'High' },
-          { domain: 'malware-c2-server.net', risk: 'Critical' }
-        ],
-        behavioralAnalysis: [
-          { behavior: 'Accessing contacts', risk: 'Medium' },
-          { behavior: 'Location tracking', risk: 'Medium' },
-          { behavior: 'Camera access', risk: 'Medium' },
-          { behavior: 'Background SMS sending', risk: 'High' },
-          { behavior: 'Persistence after reboot', risk: 'High' },
-          { behavior: 'Hidden activity execution', risk: 'Critical' }
-        ],
-        malwareFamily: [
-          'BankBot',
-          'FluBot',
-          'Joker',
-          'Cerberus',
-          'BlackRock'
-        ][Math.floor(Math.random() * 5)],
-        malwareType: [
-          'Banking Trojan',
-          'Spyware',
-          'SMS Stealer',
-          'Adware',
-          'Ransomware'
-        ][Math.floor(Math.random() * 5)]
-      }
+  // Process real analysis results from BasicStatic
+  const processAnalysisResult = (apiResult) => {
+    return {
+      analysisType: apiResult.analysis_type,
+      timestamp: apiResult.timestamp,
+      fileInfo: apiResult.file_info || {},
+      htmlReport: apiResult.report_content?.html_report || null,
+      rawOutput: apiResult.raw_output || '',
+      reportPath: apiResult.report_path || null // Store the report path for download
     };
+  };
 
-    // Set the result based on analysis type
-    setTimeout(() => {
-      setAnalysisResult(mockResults[analysisType.toLowerCase()]);
-      setIsAnalyzing(false);
-    }, 1000);
+  // Download HTML report
+  const handleDownloadReport = async () => {
+    if (!analysisResult?.reportPath) {
+      setError('Report path not available for download');
+      return;
+    }
+
+    try {
+      // Extract scan ID from the report path
+      const scanId = analysisResult.reportPath.split('/').pop();
+      
+      // Get the token for authentication
+      const token = localStorage.getItem('access_token');
+      
+      // Create a download link for the HTML report
+      const response = await fetch(`http://localhost:8000/analysis/download/${scanId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `security_report_${scanId}.html`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        setError('Failed to download report');
+      }
+    } catch (error) {
+      console.error('Download failed:', error);
+      setError('Failed to download report');
+    }
   };
 
   // Get risk color
@@ -288,83 +239,43 @@ const Analysis = () => {
       <div className={styles.resultsContainer}>
         <h2 className={styles.resultsTitle}>Analysis Results</h2>
         
-        <div className={styles.scoreSection}>
-          <div className={styles.scoreContainer}>
-            <div 
-              className={`${styles.scoreCircle} ${getRiskColor(analysisResult.malwareScore)}`}
-              style={{ '--score': `${analysisResult.malwareScore}%` }}
-            >
-              <span className={styles.scoreValue}>{analysisResult.malwareScore}</span>
-            </div>
-            <div className={styles.scoreLabel}>
-              Risk Score
+        {/* File Information */}
+        {analysisResult.fileInfo && (
+          <div className={styles.fileInfo}>
+            <h3>Analysis Information</h3>
+            <div className={styles.infoGrid}>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Filename:</span>
+                <span className={styles.infoValue}>{analysisResult.fileInfo.filename}</span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Size:</span>
+                <span className={styles.infoValue}>{(analysisResult.fileInfo.size / (1024 * 1024)).toFixed(2)} MB</span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Analysis Type:</span>
+                <span className={styles.infoValue}>{analysisResult.analysisType}</span>
+              </div>
+              <div className={styles.infoItem}>
+                <span className={styles.infoLabel}>Analyzed:</span>
+                <span className={styles.infoValue}>{new Date(analysisResult.timestamp).toLocaleString()}</span>
+              </div>
             </div>
           </div>
-          
-          {analysisResult.malwareFamily && (
-            <div className={styles.malwareInfo}>
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Malware Family:</span>
-                <span className={styles.infoValue}>{analysisResult.malwareFamily}</span>
-              </div>
-              <div className={styles.infoItem}>
-                <span className={styles.infoLabel}>Malware Type:</span>
-                <span className={styles.infoValue}>{analysisResult.malwareType}</span>
-              </div>
-            </div>
-          )}
-        </div>
+        )}
         
-        <div className={styles.detailsGrid}>
-          <div className={styles.detailCard}>
-            <h3>Permissions ({analysisResult.permissions.length})</h3>
-            <ul className={styles.permissionsList}>
-              {analysisResult.permissions.map((perm, index) => (
-                <li key={index} className={`${styles.permissionItem} ${styles[perm.risk.toLowerCase()]}`}>
-                  {perm.name}
-                  <span className={styles.riskBadge}>{perm.risk}</span>
-                </li>
-              ))}
-            </ul>
+        {/* HTML Report */}
+        {analysisResult.htmlReport && (
+          <div className={styles.htmlReportSection}>
+            <h3>Security Analysis Report</h3>
+            <iframe 
+              className={styles.htmlReportContent}
+              srcDoc={analysisResult.htmlReport}
+              title="Security Analysis Report"
+              sandbox="allow-scripts allow-same-origin"
+            />
           </div>
-          
-          <div className={styles.detailCard}>
-            <h3>Security Issues</h3>
-            <ul className={styles.issuesList}>
-              {analysisResult.securityIssues.map((issue, index) => (
-                <li key={index} className={styles.issueItem}>{issue}</li>
-              ))}
-            </ul>
-          </div>
-          
-          {analysisResult.networkCommunication && (
-            <div className={styles.detailCard}>
-              <h3>Network Communication</h3>
-              <ul className={styles.networkList}>
-                {analysisResult.networkCommunication.map((network, index) => (
-                  <li key={index} className={`${styles.networkItem} ${styles[network.risk.toLowerCase()]}`}>
-                    {network.domain}
-                    <span className={styles.riskBadge}>{network.risk}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {analysisResult.behavioralAnalysis && (
-            <div className={styles.detailCard}>
-              <h3>Behavioral Analysis</h3>
-              <ul className={styles.behaviorList}>
-                {analysisResult.behavioralAnalysis.map((behavior, index) => (
-                  <li key={index} className={`${styles.behaviorItem} ${styles[behavior.risk.toLowerCase()]}`}>
-                    {behavior.behavior}
-                    <span className={styles.riskBadge}>{behavior.risk}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+        )}
         
         <div className={styles.analysisActions}>
           <button 
@@ -375,9 +286,10 @@ const Analysis = () => {
           </button>
           <button 
             className={`${styles.actionButton} ${styles.primaryButton}`}
-            onClick={() => window.print()}
+            onClick={handleDownloadReport}
+            disabled={!analysisResult?.reportPath}
           >
-            Export Report
+            Download Report
           </button>
         </div>
       </div>
