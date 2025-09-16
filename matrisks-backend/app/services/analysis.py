@@ -135,7 +135,7 @@ class AnalysisService:
                     engine_path = self.basicstatic_path
 
                 self._engine_path = engine_path
-                self._python_path = engine_path / "venv" / "bin" / "python3"
+                self._python_path = self.basicstatic_path.parent / "matrisks-backend" / "venv" / "bin" / "python3"
                 self._matrisks_script = engine_path / "matrisks.py"
 
                 # Build command
