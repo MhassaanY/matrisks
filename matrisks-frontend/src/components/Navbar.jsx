@@ -13,7 +13,7 @@ const LockIcon = () => (
 );
 
 export default function Navbar() {
-    const { user, isAuthenticated, logout } = useAuth();
+    const { currentUser, isAuthenticated, logout } = useAuth();
     const [isDarkMode, setIsDarkMode] = useState(true);
     const [activeSection, setActiveSection] = useState('home');
     const [isScrolled, setIsScrolled] = useState(false);
@@ -229,7 +229,7 @@ export default function Navbar() {
                   onClick={(e) => handleNavClick(e, 'dashboard')}
             >
                   <span className={styles.userInfo}>
-                    {user?.username || 'User'}
+                    {currentUser?.username || 'User'}
                   </span>
                 </Link>
                 

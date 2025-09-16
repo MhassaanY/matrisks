@@ -4,6 +4,10 @@
 **/*.pyo
 **/*.pyd
 
+# Database files
+*.db
+*.sqlite3
+
 # Virtual environments
 matrisks-backend/.venv/
 .venv/

@@ -15,12 +15,98 @@ logger = logging.getLogger(__name__)
 
 class AnalysisService:
     def __init__(self):
-        # Path to BasicStatic engine
-        self.basicstatic_path = Path(__file__).parent.parent.parent.parent / "matrisksBasicStatic"
-        self.python_path = self.basicstatic_path / "venv" / "bin" / "python3"
-        self.matrisks_script = self.basicstatic_path / "matrisks.py"
+        # Paths to analysis engines
+        repo_root = Path(__file__).parent.parent.parent.parent
+        self.basicstatic_path = repo_root / "matrisksBasicStatic"
+        self.advancestatic_path = repo_root / "matrisksAdvanceStatic"
+
+        # These are set per-run based on analysis_type
+        self._engine_path: Optional[Path] = None
+        self._python_path: Optional[Path] = None
+        self._matrisks_script: Optional[Path] = None
         
-    def analyze_apk(self, apk_file_path: str, analysis_type: str = "basic") -> Dict[str, Any]:
+    def _extract_apk_metadata(self, apk_file_path: str, original_filename: str = None) -> Dict[str, Any]:
+        """
+        Extract basic metadata from APK file
+        
+        Args:
+            apk_file_path: Path to the APK file
+            original_filename: Original filename of the uploaded APK
+            
+        Returns:
+            Dictionary containing APK metadata
+        """
+        try:
+            import os
+            from pathlib import Path
+            
+            apk_path = Path(apk_file_path)
+            file_size = apk_path.stat().st_size
+            
+            # Use original filename if provided, otherwise fall back to temp file name
+            apk_name = original_filename if original_filename else apk_path.name
+            
+            return {
+                "apk_name": apk_name,
+                "file_size": file_size,
+                "file_path": str(apk_path),
+                "upload_timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.warning(f"Failed to extract APK metadata: {e}")
+            return {
+                "apk_name": original_filename if original_filename else "Unknown APK",
+                "file_size": 0,
+                "file_path": apk_file_path,
+                "upload_timestamp": datetime.now().isoformat()
+            }
+    
+    def _update_manifest_with_metadata(self, apk_metadata: Dict[str, Any], user_id: int = None) -> None:
+        """
+        Update the manifest.json file with APK metadata and user information
+        
+        Args:
+            apk_metadata: Dictionary containing APK metadata
+            user_id: ID of the user who performed the analysis
+        """
+        try:
+            latest_scan = self._get_latest_scan_directory()
+            if not latest_scan:
+                logger.warning("No scan directory found to update manifest")
+                return
+            
+            manifest_path = latest_scan / "manifest.json"
+            
+            # Read existing manifest or create new one
+            manifest_data = {}
+            if manifest_path.exists():
+                try:
+                    with open(manifest_path, 'r') as f:
+                        manifest_data = json.load(f)
+                except Exception as e:
+                    logger.warning(f"Failed to read existing manifest: {e}")
+                    manifest_data = {}
+            
+            # Update with APK metadata and user information
+            manifest_data.update({
+                "apk_name": apk_metadata.get("apk_name", "Unknown APK"),
+                "file_size": apk_metadata.get("file_size", 0),
+                "file_path": apk_metadata.get("file_path", ""),
+                "upload_timestamp": apk_metadata.get("upload_timestamp", ""),
+                "user_id": user_id,
+                "updated_at": datetime.now().isoformat()
+            })
+            
+            # Write updated manifest
+            with open(manifest_path, 'w') as f:
+                json.dump(manifest_data, f, indent=4)
+            
+            logger.info(f"Updated manifest.json with APK metadata: {apk_metadata.get('apk_name')}")
+            
+        except Exception as e:
+            logger.error(f"Failed to update manifest with metadata: {e}")
+        
+    def analyze_apk(self, apk_file_path: str, analysis_type: str = "basic", user_id: int = None, original_filename: str = None) -> Dict[str, Any]:
         """
         Analyze an APK file using BasicStatic engine
         
@@ -32,6 +118,9 @@ class AnalysisService:
             Dictionary containing analysis results
         """
         try:
+            # Extract APK metadata before analysis
+            apk_metadata = self._extract_apk_metadata(apk_file_path, original_filename)
+            
             # Create temporary directory for analysis
             with tempfile.TemporaryDirectory() as temp_dir:
                 temp_apk_path = os.path.join(temp_dir, "uploaded.apk")
@@ -39,19 +128,25 @@ class AnalysisService:
                 # Copy APK to temp directory
                 shutil.copy2(apk_file_path, temp_apk_path)
                 
-                # Run BasicStatic analysis
-                cmd = [
-                    str(self.python_path),
-                    str(self.matrisks_script),
-                    "-f", temp_apk_path
-                ]
+                # Select engine based on analysis_type
+                if analysis_type == "advanced":
+                    engine_path = self.advancestatic_path
+                else:
+                    engine_path = self.basicstatic_path
+
+                self._engine_path = engine_path
+                self._python_path = engine_path / "venv" / "bin" / "python3"
+                self._matrisks_script = engine_path / "matrisks.py"
+
+                # Build command
+                cmd = [str(self._python_path), str(self._matrisks_script), "-f", temp_apk_path]
                 
                 logger.info(f"Running analysis command: {' '.join(cmd)}")
                 
                 # Execute the analysis
                 result = subprocess.run(
                     cmd,
-                    cwd=str(self.basicstatic_path),
+                    cwd=str(engine_path),
                     capture_output=True,
                     text=True,
                     timeout=300  # 5 minute timeout
@@ -71,6 +166,9 @@ class AnalysisService:
                 
                 # Try to find the generated report files
                 report_data = self._extract_report_data()
+                
+                # Update manifest.json with APK metadata and user info
+                self._update_manifest_with_metadata(apk_metadata, user_id)
                 
                 return {
                     "success": True,
@@ -210,7 +308,8 @@ class AnalysisService:
         Get the path to the latest scan directory
         """
         try:
-            results_dir = self.basicstatic_path / "scanned_results"
+            base_path = self._engine_path or self.basicstatic_path
+            results_dir = base_path / "scanned_results"
             if not results_dir.exists():
                 return None
             
@@ -247,6 +346,8 @@ class AnalysisService:
                 "report_files": {
                     "text": str(latest_scan / "report-raw.txt"),
                     "html": str(latest_scan / "report.html"),
+                    "json": str(latest_scan / "report.json"),
+                    "csv": str(latest_scan / "report.csv"),
                     "pdf": str(latest_scan / "report.pdf")
                 }
             }
@@ -256,7 +357,7 @@ class AnalysisService:
     
     def _get_report_content(self, report_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Get the content of generated report files (HTML only)
+        Get the content of generated report files (HTML, JSON, CSV)
         """
         try:
             content = {}
@@ -266,7 +367,7 @@ class AnalysisService:
             
             report_files = report_data["report_files"]
             
-            # Read HTML report only
+            # Read HTML report
             html_report_path = report_files.get("html")
             if html_report_path and os.path.exists(html_report_path):
                 with open(html_report_path, 'r', encoding='utf-8', errors='ignore') as f:
@@ -327,6 +428,18 @@ class AnalysisService:
                     """
                     
                     content["html_report"] = clean_html
+            
+            # Read JSON report
+            json_report_path = report_files.get("json")
+            if json_report_path and os.path.exists(json_report_path):
+                with open(json_report_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content["json_report"] = f.read()
+            
+            # Read CSV report
+            csv_report_path = report_files.get("csv")
+            if csv_report_path and os.path.exists(csv_report_path):
+                with open(csv_report_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content["csv_report"] = f.read()
             
             return content
             

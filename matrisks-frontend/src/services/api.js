@@ -214,16 +214,16 @@ export async function getAnalysisResult(analysisId) {
 export async function getAnalysisHistory() {
   try {
     const response = await apiRequest('/analysis/history');
-    // Ensure the response is an array
+    // Handle the new response format with success/data structure
+    if (response && response.success && Array.isArray(response.data)) {
+      return response.data;
+    }
+    // Fallback for direct array response
     if (Array.isArray(response)) {
       return response;
     }
-    // If response is not an array but has a data property that is an array
-    if (response && Array.isArray(response.data)) {
-      return response.data;
-    }
     // If we get here, the response format is unexpected
-    console.warn('Unexpected response format, using mock data instead');
+    console.warn('Unexpected response format for analysis history');
     throw new Error('Unexpected response format');
   } catch (error) {
     console.error('Error fetching analysis history:', error);
@@ -338,6 +338,26 @@ export async function getAnalysisEngines() {
     throw new Error('Unexpected response format');
   } catch (error) {
     console.error('Error fetching analysis engines:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get analysis history with metadata (admin only)
+ * @returns {Promise<Array>} - List of analysis records
+ */
+export async function getAdminAnalysisHistory() {
+  try {
+    const response = await apiRequest('/admin/analysis-history');
+    if (Array.isArray(response)) {
+      return response;
+    }
+    if (response && Array.isArray(response.data)) {
+      return response.data;
+    }
+    throw new Error('Unexpected response format');
+  } catch (error) {
+    console.error('Error fetching analysis history:', error);
     throw error;
   }
 }

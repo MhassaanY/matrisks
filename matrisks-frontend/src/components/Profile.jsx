@@ -364,8 +364,8 @@ const Profile = () => {
                     {analysisHistory.map((item, index) => (
                       <tr key={item.id}>
                         <td>{index + 1}</td>
-                        <td>{item.apkName}</td>
-                        <td>{item.analysisType}</td>
+                        <td>{item.apk_name}</td>
+                        <td>{item.analysis_type}</td>
                         <td>{new Date(item.timestamp).toLocaleString()}</td>
                       </tr>
                     ))}

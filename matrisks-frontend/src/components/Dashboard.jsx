@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import styles from './Dashboard.module.css';
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const [date, setDate] = useState(new Date());
   const [activeButton, setActiveButton] = useState(null);
@@ -108,7 +108,7 @@ const Dashboard = () => {
         <header className={`${styles.dashboardHeader} ${isVisible ? styles.visible : ''}`}>
           <h1>Welcome to MatRisks</h1>
           <p className={styles.welcomeMessage}>
-            Hello, <span className={styles.username}>{user?.first_name || user?.username}</span>! Choose your analysis type below:
+            Hello, <span className={styles.username}>{currentUser?.first_name || currentUser?.username}</span>! Choose your analysis type below:
           </p>
         </header>
         

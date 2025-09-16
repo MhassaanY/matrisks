@@ -51,7 +51,9 @@ Next steps:
    source $BACKEND_DIR/venv/bin/activate && cd $BACKEND_DIR && uvicorn app.main:app --reload
 2) Start frontend:
    cd $FRONTEND_DIR && npm install && npm run dev
-3) Basic static tools (optional):
-   cd $PROJECT_ROOT/matrisksBasicStatic && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+3) To run static analysis tools, ensure you are in the project root and activate the virtual environment:
+   source $BACKEND_DIR/venv/bin/activate
+   Then, you can run the tools from their respective directories, for example:
+   cd $PROJECT_ROOT/matrisksBasicStatic && python3 matrisks.py --help
 EOF
 

@@ -1,3 +1,4 @@
 -r matrisks-backend/requirements.txt
 -r matrisksBasicStatic/requirements.txt
+-r matrisksAdvanceStatic/requirements.txt
 

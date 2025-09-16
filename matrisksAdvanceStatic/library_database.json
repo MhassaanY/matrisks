@@ -1,0 +1,30 @@
+{
+  "com.squareup.okhttp": {
+    "ecosystem": "Maven",
+    "name": "com.squareup.okhttp3:okhttp"
+  },
+  "com.squareup.retrofit": {
+    "ecosystem": "Maven",
+    "name": "com.squareup.retrofit2:retrofit"
+  },
+  "com.github.bumptech.glide": {
+    "ecosystem": "Maven",
+    "name": "com.github.bumptech.glide:glide"
+  },
+  "com.google.gson": {
+    "ecosystem": "Maven",
+    "name": "com.google.code.gson:gson"
+  },
+  "io.reactivex": {
+    "ecosystem": "Maven",
+    "name": "io.reactivex.rxjava2:rxjava"
+  },
+  "org.apache.http": {
+    "ecosystem": "Maven",
+    "name": "org.apache.httpcomponents:httpclient"
+  },
+  "com.fasterxml.jackson.core": {
+    "ecosystem": "Maven",
+    "name": "com.fasterxml.jackson.core:jackson-core"
+  }
+}

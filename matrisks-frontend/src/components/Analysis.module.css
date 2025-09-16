@@ -974,3 +974,140 @@
     padding: 4px 6px;
   }
 }
+
+/* Report Format Dropdown Styles */
+.reportFormatDropdown {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid var(--dark-border);
+  width: fit-content;
+  margin-left: auto;
+  margin-right: 0;
+}
+
+.formatLabel {
+  color: var(--dark-text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.formatSelect {
+  background: var(--dark-card-bg);
+  border: 1px solid var(--dark-border);
+  color: var(--dark-text);
+  padding: 0.5rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s var(--transition-bezier);
+  min-width: 80px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.formatSelect:hover {
+  border-color: var(--primary-color);
+  background: rgba(74, 144, 226, 0.1);
+}
+
+.formatSelect:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.formatSelect option {
+  background: var(--dark-card-bg);
+  color: var(--dark-text);
+  padding: 0.5rem;
+}
+
+/* Report Section Styles */
+.reportSection {
+  margin-top: 2rem;
+  padding: 0;
+  background: transparent;
+  border: none;
+  width: 100%;
+  max-width: none;
+}
+
+.reportSection h3 {
+  color: var(--primary-color);
+  margin-bottom: 1.5rem;
+  font-size: 1.3rem;
+  font-weight: 600;
+  padding: 0 1rem;
+}
+
+/* JSON Report Content */
+.jsonReportContent {
+  width: 100%;
+  min-height: 400px;
+  max-height: 600px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--dark-border);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* CSV Report Content */
+.csvReportContent {
+  width: 100%;
+  min-height: 400px;
+  max-height: 600px;
+  background: #1e1e1e;
+  color: #d4d4d4;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--dark-border);
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* No Report Message */
+.noReportMessage {
+  padding: 3rem;
+  text-align: center;
+  color: var(--dark-text-secondary);
+  font-style: italic;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid var(--dark-border);
+}
+
+/* Responsive adjustments for report formats */
+@media (max-width: 768px) {
+  .reportFormatDropdown {
+    margin-left: 0;
+    margin-right: 0;
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .jsonReportContent,
+  .csvReportContent {
+    font-size: 0.8rem;
+    padding: 1rem;
+    min-height: 300px;
+  }
+}

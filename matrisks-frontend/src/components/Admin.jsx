@@ -2,14 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import styles from './Admin.module.css';
-import { getUsers, deleteUser, getAnalysisEngines } from '../services/api';
+import { getUsers, deleteUser, getAnalysisEngines, getAdminAnalysisHistory } from '../services/api';
 
 const Admin = () => {
   const { currentUser, isAdmin } = useAuth();
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState('users'); // 'users' or 'engines'
+  const [activeSection, setActiveSection] = useState('users'); // 'users', 'engines', or 'history'
   const [users, setUsers] = useState([]);
   const [engines, setEngines] = useState([]);
+  const [analysisHistory, setAnalysisHistory] = useState([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [isVisible, setIsVisible] = useState(false);
@@ -61,12 +62,29 @@ const Admin = () => {
     }
   };
 
+  // Fetch analysis history data
+  const fetchAnalysisHistory = async () => {
+    try {
+      setLoading(true);
+      const historyData = await getAdminAnalysisHistory();
+      setAnalysisHistory(historyData);
+      setMessage({ type: '', text: '' });
+    } catch (error) {
+      console.error('Failed to fetch analysis history:', error);
+      setMessage({ type: 'error', text: 'Failed to load analysis history' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Load data based on active section
   useEffect(() => {
     if (activeSection === 'users') {
       fetchUsers();
     } else if (activeSection === 'engines') {
       fetchEngines();
+    } else if (activeSection === 'history') {
+      fetchAnalysisHistory();
     }
   }, [activeSection]);
 
@@ -127,7 +145,7 @@ const Admin = () => {
                 <td>{user.username}</td>
                 <td>{user.email}</td>
                 <td>{`${user.first_name || ''} ${user.last_name || ''}`}</td>
-                <td>{user.is_admin ? 'Yes' : 'No'}</td>
+                <td>{user.is_admin || user.is_superuser ? 'Yes' : 'No'}</td>
                 <td>
                   {confirmDelete === user.id ? (
                     <div className={styles.confirmDelete}>
@@ -185,6 +203,8 @@ const Admin = () => {
               <th>Description</th>
               <th>Status</th>
               <th>Version</th>
+              <th>Supported Formats</th>
+              <th>Last Updated</th>
             </tr>
           </thead>
           <tbody>
@@ -199,6 +219,72 @@ const Admin = () => {
                   </span>
                 </td>
                 <td>{engine.version}</td>
+                <td>
+                  <div className={styles.formatTags}>
+                    {engine.supported_formats?.map((format) => (
+                      <span key={format} className={styles.formatTag}>
+                        {format.toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                </td>
+                <td>{new Date(engine.last_updated).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
+  // Render analysis history table
+  const renderAnalysisHistoryTable = () => {
+    if (loading && analysisHistory.length === 0) {
+      return <div className={styles.loading}>Loading analysis history...</div>;
+    }
+
+    if (analysisHistory.length === 0) {
+      return <div className={styles.noData}>No analysis history found</div>;
+    }
+
+    return (
+      <div className={styles.tableContainer}>
+        <table className={styles.dataTable}>
+          <thead>
+            <tr>
+              <th>Scan ID</th>
+              <th>APK Name</th>
+              <th>File Size</th>
+              <th>Analysis Type</th>
+              <th>User</th>
+              <th>Timestamp</th>
+              <th>Status</th>
+              <th>Available Formats</th>
+            </tr>
+          </thead>
+          <tbody>
+            {analysisHistory.map((analysis) => (
+              <tr key={analysis.id}>
+                <td className={styles.scanId}>{analysis.id}</td>
+                <td>{analysis.apk_name}</td>
+                <td>{(analysis.file_size / (1024 * 1024)).toFixed(2)} MB</td>
+                <td>{analysis.analysis_type}</td>
+                <td>{analysis.user}</td>
+                <td>{new Date(analysis.timestamp).toLocaleString()}</td>
+                <td>
+                  <span className={`${styles.status} ${styles[analysis.status]}`}>
+                    {analysis.status}
+                  </span>
+                </td>
+                <td>
+                  <div className={styles.formatTags}>
+                    {analysis.available_formats?.map((format) => (
+                      <span key={format} className={styles.formatTag}>
+                        {format.toUpperCase()}
+                      </span>
+                    ))}
+                  </div>
+                </td>
               </tr>
             ))}
           </tbody>
@@ -256,6 +342,12 @@ const Admin = () => {
           >
             View Analysis Engines
           </button>
+          <button 
+            className={`${styles.sectionButton} ${activeSection === 'history' ? styles.active : ''}`}
+            onClick={() => setActiveSection('history')}
+          >
+            Analysis History
+          </button>
         </div>
 
         {message.text && (
@@ -266,12 +358,14 @@ const Admin = () => {
 
         <div className={styles.adminCard}>
           <h1 className={styles.sectionTitle}>
-            {activeSection === 'users' ? 'Manage User Accounts' : 'Analysis Engines'}
+            {activeSection === 'users' ? 'Manage User Accounts' : 
+             activeSection === 'engines' ? 'Analysis Engines' : 'Analysis History'}
           </h1>
           
           <div className={styles.refreshContainer}>
             <button 
-              onClick={activeSection === 'users' ? fetchUsers : fetchEngines}
+              onClick={activeSection === 'users' ? fetchUsers : 
+                      activeSection === 'engines' ? fetchEngines : fetchAnalysisHistory}
               className={styles.refreshButton}
               disabled={loading}
             >
@@ -279,7 +373,8 @@ const Admin = () => {
             </button>
           </div>
 
-          {activeSection === 'users' ? renderUserTable() : renderEnginesTable()}
+          {activeSection === 'users' ? renderUserTable() : 
+           activeSection === 'engines' ? renderEnginesTable() : renderAnalysisHistoryTable()}
         </div>
       </main>
     </div>

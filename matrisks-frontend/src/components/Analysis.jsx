@@ -5,7 +5,7 @@ import { uploadFileForAnalysis } from '../services/api';
 import styles from './Analysis.module.css';
 
 const Analysis = () => {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
@@ -17,6 +17,7 @@ const Analysis = () => {
   const [analysisProgress, setAnalysisProgress] = useState(0);
   const [analysisResult, setAnalysisResult] = useState(null);
   const [error, setError] = useState('');
+  const [reportFormat, setReportFormat] = useState('html');
   const fileInputRef = useRef(null);
   const progressIntervalRef = useRef(null);
 
@@ -24,6 +25,12 @@ const Analysis = () => {
   useEffect(() => {
     if (location.state?.analysisType) {
       setAnalysisType(location.state.analysisType);
+      // Set default report format based on analysis type
+      if (location.state.analysisType.toLowerCase() === 'advanced') {
+        setReportFormat('html'); // Default to HTML for advanced
+      } else {
+        setReportFormat('html'); // Basic only supports HTML
+      }
     } else {
       // Redirect to dashboard if no analysis type provided
       navigate('/dashboard');
@@ -179,12 +186,14 @@ const Analysis = () => {
       timestamp: apiResult.timestamp,
       fileInfo: apiResult.file_info || {},
       htmlReport: apiResult.report_content?.html_report || null,
+      jsonReport: apiResult.report_content?.json_report || null,
+      csvReport: apiResult.report_content?.csv_report || null,
       rawOutput: apiResult.raw_output || '',
       reportPath: apiResult.report_path || null // Store the report path for download
     };
   };
 
-  // Download HTML report
+  // Download report in selected format
   const handleDownloadReport = async () => {
     if (!analysisResult?.reportPath) {
       setError('Report path not available for download');
@@ -198,8 +207,8 @@ const Analysis = () => {
       // Get the token for authentication
       const token = localStorage.getItem('access_token');
       
-      // Create a download link for the HTML report
-      const response = await fetch(`http://localhost:8000/analysis/download/${scanId}`, {
+      // Create a download link for the selected format
+      const response = await fetch(`http://localhost:8000/analysis/download/${scanId}?format=${reportFormat}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -210,7 +219,7 @@ const Analysis = () => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `security_report_${scanId}.html`;
+        a.download = `security_report_${scanId}.${reportFormat}`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -229,6 +238,55 @@ const Analysis = () => {
     if (score < 30) return styles.safe;
     if (score < 70) return styles.medium;
     return styles.dangerous;
+  };
+
+  // Get available report formats based on analysis type
+  const getAvailableFormats = () => {
+    if (analysisType.toLowerCase() === 'advanced') {
+      return ['html', 'json', 'csv'];
+    } else {
+      return ['html']; // Basic analysis only supports HTML
+    }
+  };
+
+  // Function to render different report formats
+  const renderReportContent = () => {
+    if (!analysisResult) return null;
+
+    switch (reportFormat) {
+      case 'html':
+        return analysisResult.htmlReport ? (
+          <iframe 
+            className={styles.htmlReportContent}
+            srcDoc={analysisResult.htmlReport}
+            title="Security Analysis Report"
+            sandbox="allow-scripts allow-same-origin"
+          />
+        ) : (
+          <div className={styles.noReportMessage}>HTML report not available</div>
+        );
+      
+      case 'json':
+        return analysisResult.jsonReport ? (
+          <pre className={styles.jsonReportContent}>
+            {JSON.stringify(JSON.parse(analysisResult.jsonReport), null, 2)}
+          </pre>
+        ) : (
+          <div className={styles.noReportMessage}>JSON report not available</div>
+        );
+      
+      case 'csv':
+        return analysisResult.csvReport ? (
+          <pre className={styles.csvReportContent}>
+            {analysisResult.csvReport}
+          </pre>
+        ) : (
+          <div className={styles.noReportMessage}>CSV report not available</div>
+        );
+      
+      default:
+        return <div className={styles.noReportMessage}>Report format not supported</div>;
+    }
   };
 
   // Function to render analysis results
@@ -264,18 +322,28 @@ const Analysis = () => {
           </div>
         )}
         
-        {/* HTML Report */}
-        {analysisResult.htmlReport && (
-          <div className={styles.htmlReportSection}>
-            <h3>Security Analysis Report</h3>
-            <iframe 
-              className={styles.htmlReportContent}
-              srcDoc={analysisResult.htmlReport}
-              title="Security Analysis Report"
-              sandbox="allow-scripts allow-same-origin"
-            />
-          </div>
-        )}
+        {/* Report Format Dropdown */}
+        <div className={styles.reportFormatDropdown}>
+          <label htmlFor="formatSelect" className={styles.formatLabel}>Format:</label>
+          <select
+            id="formatSelect"
+            value={reportFormat}
+            onChange={(e) => setReportFormat(e.target.value)}
+            className={styles.formatSelect}
+          >
+            {getAvailableFormats().map((format) => (
+              <option key={format} value={format}>
+                {format.toUpperCase()}
+              </option>
+            ))}
+          </select>
+        </div>
+        
+        {/* Report Content */}
+        <div className={styles.reportSection}>
+          <h3>Security Analysis Report ({reportFormat.toUpperCase()})</h3>
+          {renderReportContent()}
+        </div>
         
         <div className={styles.analysisActions}>
           <button 
@@ -289,7 +357,7 @@ const Analysis = () => {
             onClick={handleDownloadReport}
             disabled={!analysisResult?.reportPath}
           >
-            Download Report
+            Download {reportFormat.toUpperCase()} Report
           </button>
         </div>
       </div>

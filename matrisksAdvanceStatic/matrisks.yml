@@ -1,0 +1,47 @@
+# Matrisks Configuration
+# ----------------------
+
+# Settings for the Hardcoded Secrets vector
+hardcoded_secrets:
+  entropy_threshold: 4.0
+  wordlist_path: "wordlist.txt"
+
+# Enable or disable vectors by their module name.
+# The script will load only the vectors listed under 'enabled'.
+vectors:
+  enabled:
+    - adb
+    - app_overview
+    - base64
+    - debug
+    - dependency_analysis
+    - dynamic_code
+    - fragment_injection
+    - framework
+    - hardcoded_secrets
+    - http
+    - insecure_component_interaction
+    - insecure_data_storage
+    - install_source_check
+    - keystore
+    - manifest_gcm
+    - master_key_and_shared_user_id
+    - native_method
+    - packageinfo_signatures
+    - permissions
+    - root
+    - runtime_exec
+    - screenshot_prevention
+    - security_methods_and_classes
+    - sensitive
+    - sms
+    - sqlite
+    - ssl
+    - storage
+    - strandhogg
+    - weak_cryptography
+    - webview
+    - pii_logging
+    - xxe_injection
+  disabled:
+    []

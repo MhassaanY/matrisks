@@ -17,8 +17,11 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('Auth check failed:', error);
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
+      // Only clear tokens if it's a 401 error (invalid token)
+      if (error.message && error.message.includes('401')) {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      }
     } finally {
       setLoading(false);
     }
@@ -27,6 +30,15 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Ensure loading is always set to false after a reasonable time
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2000); // 2 second timeout
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const login = async (username_or_email, password) => {
     try {

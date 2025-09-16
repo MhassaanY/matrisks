@@ -13,4 +13,5 @@ class User(Base):
     gender = Column(Text)
     is_active = Column(Boolean, default=True)
     is_superuser = Column(Boolean, default=False)
+    is_admin = Column(Boolean, default=False)
     created_at = Column(DateTime, server_default=sql.func.now())

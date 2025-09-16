@@ -8,6 +8,7 @@ from typing import Dict, Any
 import tempfile
 import os
 from pathlib import Path
+from datetime import datetime
 
 from app.database import get_db
 from app.schemas import UserOut
@@ -65,7 +66,7 @@ async def scan_apk(
             analysis_service = AnalysisService()
             
             # Perform analysis
-            results = analysis_service.analyze_apk(temp_file.name, analysis_type)
+            results = analysis_service.analyze_apk(temp_file.name, analysis_type, current_user.id, file.filename)
             
             if not results.get("success", False):
                 raise HTTPException(
@@ -207,42 +208,152 @@ async def get_security_vectors() -> Dict[str, Any]:
 @router.get("/download/{scan_id}")
 async def download_report(
     scan_id: str,
+    format: str = "html",
     current_user: UserOut = Depends(get_current_user)
 ):
     """
-    Download the HTML report for a specific scan
+    Download a report for a specific scan in the requested format
     
     Args:
         scan_id: The scan ID (directory name in scanned_results)
+        format: Report format (html, json, csv, pdf)
         current_user: Current authenticated user
         
     Returns:
-        HTML report file
+        Report file in the requested format
     """
     try:
-        # Initialize analysis service to get the path
+        # Initialize analysis service to get the paths
         analysis_service = AnalysisService()
         basicstatic_path = analysis_service.basicstatic_path
+        advancestatic_path = analysis_service.advancestatic_path
         
-        # Construct the report path
-        report_path = basicstatic_path / "scanned_results" / scan_id / "report.html"
+        # Map format to file extension and media type
+        format_map = {
+            "html": ("report.html", "text/html", "html"),
+            "json": ("report.json", "application/json", "json"),
+            "csv": ("report.csv", "text/csv", "csv"),
+            "pdf": ("report.pdf", "application/pdf", "pdf")
+        }
+        
+        if format not in format_map:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid format. Must be one of: html, json, csv, pdf"
+            )
+        
+        filename, media_type, file_ext = format_map[format]
+        
+        # Try to find the report in both basic and advanced static directories
+        report_path = None
+        for base_path in [basicstatic_path, advancestatic_path]:
+            potential_path = base_path / "scanned_results" / scan_id / filename
+            if potential_path.exists():
+                report_path = potential_path
+                break
         
         # Check if the report exists
-        if not report_path.exists():
+        if not report_path:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Report not found"
+                detail=f"Report not found for format: {format}"
             )
         
         # Return the file
         return FileResponse(
             path=str(report_path),
-            filename=f"security_report_{scan_id}.html",
-            media_type="text/html"
+            filename=f"security_report_{scan_id}.{file_ext}",
+            media_type=media_type
         )
         
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to download report: {str(e)}"
+        )
+
+@router.get("/history")
+async def get_user_analysis_history(
+    current_user: UserOut = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get analysis history for the current user
+    
+    Args:
+        current_user: Current authenticated user
+        
+    Returns:
+        List of analysis records for the current user
+    """
+    try:
+        # Get the project root directory
+        project_root = Path(__file__).parent.parent.parent.parent
+        
+        analysis_history = []
+        
+        # Scan both basic and advanced static directories for analysis results
+        for engine_name, engine_path in [
+            ("Basic Static", project_root / "matrisksBasicStatic"),
+            ("Advanced Static", project_root / "matrisksAdvanceStatic")
+        ]:
+            results_dir = engine_path / "scanned_results"
+            if results_dir.exists():
+                for scan_dir in results_dir.iterdir():
+                    if scan_dir.is_dir() and scan_dir.name.startswith("SCAN-"):
+                        # Read manifest.json if it exists
+                        manifest_path = scan_dir / "manifest.json"
+                        manifest_data = {}
+                        if manifest_path.exists():
+                            try:
+                                import json
+                                with open(manifest_path, 'r') as f:
+                                    manifest_data = json.load(f)
+                            except:
+                                pass
+                        
+                        # Check if this scan belongs to the current user
+                        user_id = manifest_data.get("user_id")
+                        if user_id is None:
+                            # Skip scans without user tracking (older scans)
+                            continue
+                        if str(user_id) != str(current_user.id):
+                            # Skip scans not belonging to current user
+                            continue
+                        
+                        # Get file info
+                        apk_name = manifest_data.get("apk_name", "Unknown APK")
+                        file_size = manifest_data.get("file_size", 0)
+                        
+                        # Check what report formats are available
+                        available_formats = []
+                        for format_ext in ["html", "json", "csv", "pdf"]:
+                            if (scan_dir / f"report.{format_ext}").exists():
+                                available_formats.append(format_ext)
+                        
+                        analysis_history.append({
+                            "id": scan_dir.name,
+                            "apk_name": apk_name,
+                            "file_size": file_size,
+                            "analysis_type": engine_name,
+                            "timestamp": manifest_data.get("created_at", 
+                                datetime.fromtimestamp(scan_dir.stat().st_mtime).isoformat()),
+                            "status": "completed",
+                            "available_formats": available_formats,
+                            "scan_path": str(scan_dir),
+                            "user_id": user_id
+                        })
+        
+        # Sort by timestamp (newest first)
+        analysis_history.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        return {
+            "success": True,
+            "data": analysis_history,
+            "total": len(analysis_history)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch analysis history: {str(e)}"
         )
