@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { aiApi } from '../services/api';
 import styles from './Dashboard.module.css';
 
 const Dashboard = () => {
@@ -10,6 +11,8 @@ const Dashboard = () => {
   const [activeButton, setActiveButton] = useState(null);
   const [showFooterTip, setShowFooterTip] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [aiStats, setAiStats] = useState(null);
+  const [showAiStats, setShowAiStats] = useState(false);
   const dashboardRef = useRef(null);
   const buttonsRef = useRef([]);
 
@@ -22,7 +25,23 @@ const Dashboard = () => {
   // Entrance animation on mount
   useEffect(() => {
     setIsVisible(true);
+    // Load AI stats
+    loadAIStats();
   }, []);
+
+  // Load AI statistics
+  const loadAIStats = async () => {
+    try {
+      const statsResponse = await aiApi.getStatistics();
+      if (statsResponse.statistics && statsResponse.statistics.total_analyses > 0) {
+        setAiStats(statsResponse.statistics);
+        setShowAiStats(true);
+      }
+    } catch (error) {
+      // If AI stats fail to load, just don't show the widget
+      console.log('AI stats not available:', error.message);
+    }
+  };
 
   // Analysis options data
   const analysisOptions = [
@@ -73,9 +92,16 @@ const Dashboard = () => {
     const selectedOption = analysisOptions.find(opt => opt.id === id);
     
     // Navigate to the Analysis page with the selected analysis type
+    let analysisType;
+    if (id === 'malware-detection') {
+      analysisType = 'Malware';
+    } else {
+      analysisType = selectedOption.title.split(' ')[0]; // Use the first word of the title (Basic, Advanced, Dynamic)
+    }
+    
     navigate('/analysis', { 
       state: { 
-        analysisType: selectedOption.title.split(' ')[0] // Use the first word of the title (Basic, Advanced, Dynamic, Malware)
+        analysisType: analysisType
       } 
     });
     console.log(`Navigating to analysis with type: ${selectedOption.title}`);
@@ -137,6 +163,29 @@ const Dashboard = () => {
             </button>
           ))}
         </div>
+
+        {/* AI Stats Widget - only show if user has AI analysis history */}
+        {showAiStats && aiStats && (
+          <div className={`${styles.aiStatsWidget} ${isVisible ? styles.visible : ''}`}>
+            <h3 className={styles.aiStatsTitle}>🤖 Your AI Analysis Summary</h3>
+            <div className={styles.aiStatsGrid}>
+              <div className={styles.aiStatItem}>
+                <div className={styles.aiStatNumber}>{aiStats.total_analyses}</div>
+                <div className={styles.aiStatLabel}>Total Scans</div>
+              </div>
+              <div className={styles.aiStatItem}>
+                <div className={styles.aiStatNumber}>{aiStats.malware_detected}</div>
+                <div className={styles.aiStatLabel}>Threats Found</div>
+              </div>
+              <div className={styles.aiStatItem}>
+                <div className={styles.aiStatNumber}>
+                  {(aiStats.average_confidence * 100).toFixed(0)}%
+                </div>
+                <div className={styles.aiStatLabel}>Avg Confidence</div>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
 
       <footer 

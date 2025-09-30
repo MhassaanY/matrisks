@@ -84,7 +84,7 @@ class Vector(VectorBase):
 
         regexp_sqlcipher_database_class = re.compile(".*/SQLiteDatabase;")
         for dalvik in self.dalvik:
-            for method in dalvik.get_methods():
+            for method in dalvik.get_encoded_methods():
                 # checks if method is native
                 if 0x100 & method.get_access_flags():
                     class_name = method.get_class_name()

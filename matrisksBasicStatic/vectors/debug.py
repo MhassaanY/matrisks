@@ -1,6 +1,6 @@
 from vector_base import VectorBase
 from constants import *
-from androguard.core.bytecodes import dvm
+from androguard.core import dex as dvm
 from timeit import default_timer as timer
 
 class Vector(VectorBase):
@@ -90,7 +90,7 @@ class Vector(VectorBase):
         # Do a quick scan to detect if there are any Landroid/content/pm/ApplicationInfo;->flags fields present,
         # saving time if there are no such fields in the application
         if not any([dalvik for dalvik in self.dalvik
-                    if any([i for i in dalvik.get_all_fields()
+                    if any([i for i in dalvik.get_fields()
                                 if i.get_list() == ['Landroid/content/pm/ApplicationInfo;', 'I', 'flags']
                             ])
                    ]):
@@ -122,7 +122,7 @@ class Vector(VectorBase):
         operands = instruction.get_operands()
         opcode = instruction.get_op_value()
         if opcode == self.OPCODES["and-int/lit8"] and \
-                operands[2] == (dvm.OPERAND_LITERAL, 2) and \
+                operands[2] == 2 and \
                 operands[1] == flags_register:
             return True
         return False

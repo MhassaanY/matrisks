@@ -3,13 +3,32 @@
  * This file will interface with the FastAPI backend in the future
  */
 
-// Base URL for API calls
-const API_BASE_URL = (() => {
-  if (import.meta.env?.VITE_API_BASE_URL) {
-    return import.meta.env.VITE_API_BASE_URL;
+const isBrowser = typeof window !== 'undefined';
+
+const resolveApiBaseUrl = () => {
+  const configuredBase = import.meta.env?.VITE_API_BASE_URL;
+  if (configuredBase) {
+    return configuredBase.replace(/\/$/, '');
   }
+
+  if (import.meta.env?.DEV) {
+    // In development we rely on the dev server proxy to avoid CORS headaches
+    return '';
+  }
+
+  if (isBrowser) {
+    return window.location.origin;
+  }
+
   return 'http://localhost:8000';
-})();
+};
+
+export const API_BASE_URL = resolveApiBaseUrl();
+
+export const buildApiUrl = (endpoint = '') => {
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return `${API_BASE_URL}${normalizedEndpoint}`;
+};
 
 // Check if we should use mock data
 const USE_MOCK_DATA = (() => {
@@ -19,7 +38,7 @@ const USE_MOCK_DATA = (() => {
 })();
 
 console.log('API Configuration:', {
-  API_BASE_URL,
+  API_BASE_URL: API_BASE_URL || '(relative)',
   USE_MOCK_DATA,
   NODE_ENV: import.meta.env?.MODE,
   DEV: import.meta.env?.DEV
@@ -38,7 +57,7 @@ async function apiRequest(endpoint, options = {}) {
     return getMockResponse(endpoint, options);
   }
   
-  const url = `${API_BASE_URL}${endpoint}`;
+  const url = buildApiUrl(endpoint);
   console.log(`Making API request to: ${url}`, { options });
   
   try {
@@ -61,10 +80,18 @@ async function apiRequest(endpoint, options = {}) {
       }
     }
     
+    const credentialsMode = (() => {
+      if (!isBrowser) return 'same-origin';
+      if (!API_BASE_URL || API_BASE_URL === '' || url.startsWith(window.location.origin)) {
+        return 'same-origin';
+      }
+      return 'include';
+    })();
+
     const response = await fetch(url, {
       ...options,
       headers,
-      credentials: 'include', // Include cookies for authentication
+      credentials: credentialsMode,
     });
 
     console.log(`API response status: ${response.status}`, { url });
@@ -361,6 +388,42 @@ export async function getAdminAnalysisHistory() {
     throw error;
   }
 }
+
+// AI Analysis API methods
+export const aiApi = {
+  /**
+   * Get AI service health status
+   * @returns {Promise<Object>} - AI health status
+   */
+  getHealth() {
+    return apiRequest('/analysis/ai/health');
+  },
+  
+  /**
+   * Get AI model information
+   * @returns {Promise<Object>} - AI model info
+   */
+  getInfo() {
+    return apiRequest('/analysis/ai/info');
+  },
+  
+  /**
+   * Get AI analysis statistics for current user
+   * @returns {Promise<Object>} - AI statistics
+   */
+  getStatistics() {
+    return apiRequest('/analysis/ai/statistics');
+  },
+  
+  /**
+   * Get AI analysis history for current user
+   * @param {number} limit - Maximum number of records to return
+   * @returns {Promise<Array>} - AI analysis history
+   */
+  getHistory(limit = 50) {
+    return apiRequest(`/analysis/ai/history?limit=${limit}`);
+  }
+};
 
 // Auth API methods
 export const authApi = {

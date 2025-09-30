@@ -1111,3 +1111,232 @@
     min-height: 300px;
   }
 }
+
+/* AI Malware Detection Specific Styles */
+.aiMainResult {
+  background: var(--light-card-bg);
+  border-radius: 16px;
+  padding: 30px;
+  margin-bottom: 30px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+  border: 1px solid var(--light-border);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 30px;
+  backdrop-filter: blur(10px);
+}
+
+.aiPredictionSection {
+  text-align: center;
+}
+
+.aiPredictionLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--light-text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.aiPrediction {
+  font-size: 24px;
+  font-weight: 800;
+  padding: 12px 24px;
+  border-radius: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.aiPrediction.aiMalware {
+  background: linear-gradient(135deg, #ff6b6b, #dc3545);
+  color: white;
+}
+
+.aiPrediction.aiBenign {
+  background: linear-gradient(135deg, #28a745, #20c997);
+  color: white;
+}
+
+.aiConfidenceSection {
+  flex: 1;
+}
+
+.aiConfidenceLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--light-text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.aiConfidenceBar {
+  position: relative;
+  width: 100%;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.aiConfidenceFill {
+  height: 100%;
+  border-radius: 12px;
+  transition: width 1s ease-out;
+  background: linear-gradient(90deg, currentColor, currentColor);
+}
+
+.aiConfidenceText {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--light-text);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.aiRiskSection {
+  text-align: center;
+}
+
+.aiRiskLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--light-text-secondary);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.aiRiskBadge {
+  padding: 8px 16px;
+  border-radius: 20px;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.aiRecommendations {
+  background: var(--light-card-bg);
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--light-border);
+  backdrop-filter: blur(10px);
+}
+
+.aiRecommendations h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--light-text);
+  margin: 0 0 16px 0;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--light-border);
+}
+
+.aiMalwareRecommendation {
+  border-left: 4px solid #dc3545;
+  padding-left: 16px;
+}
+
+.aiBenignRecommendation {
+  border-left: 4px solid #28a745;
+  padding-left: 16px;
+}
+
+.aiWarning {
+  color: #dc3545;
+  font-size: 16px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.aiSuccess {
+  color: #28a745;
+  font-size: 16px;
+  margin-bottom: 16px;
+  font-weight: 600;
+}
+
+.aiRecommendationsList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.aiRecommendationsList li {
+  padding: 8px 0 8px 24px;
+  position: relative;
+  color: var(--light-text);
+  line-height: 1.5;
+}
+
+.aiRecommendationsList li::before {
+  content: "•";
+  color: var(--light-text-secondary);
+  font-weight: bold;
+  position: absolute;
+  left: 0;
+}
+
+/* Dark mode adjustments for AI components */
+@media (prefers-color-scheme: dark) {
+  .aiMainResult,
+  .aiRecommendations {
+    background: var(--dark-card-bg);
+    border-color: var(--dark-border);
+  }
+  
+  .aiPredictionLabel,
+  .aiConfidenceLabel,
+  .aiRiskLabel {
+    color: var(--dark-text-secondary);
+  }
+  
+  .aiConfidenceBar {
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .aiConfidenceText {
+    color: var(--dark-text);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  }
+  
+  .aiRecommendations h3 {
+    color: var(--dark-text);
+    border-bottom-color: var(--dark-border);
+  }
+  
+  .aiRecommendationsList li {
+    color: var(--dark-text);
+  }
+  
+  .aiRecommendationsList li::before {
+    color: var(--dark-text-secondary);
+  }
+}
+
+/* Responsive design for AI components */
+@media (max-width: 768px) {
+  .aiMainResult {
+    grid-template-columns: 1fr;
+    text-align: center;
+    gap: 20px;
+    padding: 20px;
+  }
+  
+  .aiPrediction {
+    font-size: 20px;
+    padding: 8px 16px;
+  }
+}

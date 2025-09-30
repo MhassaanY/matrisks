@@ -1,7 +1,25 @@
 import re
-from androguard.core.bytecodes import dvm
+from androguard.core import dex as dvm
 from androguard.core.analysis import analysis
 import constants
+
+
+def _resolve_operand(name: str) -> int:
+
+    legacy_attr = f"OPERAND_{name}"
+    if hasattr(dvm, legacy_attr):
+        return getattr(dvm, legacy_attr)
+
+    operand_cls = getattr(dvm, "Operand", None)
+    if operand_cls is not None and hasattr(operand_cls, name):
+        return int(getattr(operand_cls, name))
+
+    raise AttributeError(f"Unable to resolve operand constant '{name}' from androguard")
+
+
+OPERAND_REGISTER = _resolve_operand("REGISTER")
+OPERAND_LITERAL = _resolve_operand("LITERAL")
+OPERAND_KIND = _resolve_operand("KIND")
 
 
 class Stack:
@@ -129,29 +147,29 @@ class RegisterAnalyzerVMImmediateValue(object):
             if 0x12 <= ins <= 0x1c:  # [const] or [const/xx] or [const-string]
                 dst_register_pair = reg_list[0]
                 src_register_pair = reg_list[1]
-                if dst_register_pair[0] == dvm.OPERAND_REGISTER:
+                if dst_register_pair[0] == OPERAND_REGISTER:
                     dst_register_number = dst_register_pair[1]
 
-                    if src_register_pair[0] & dvm.OPERAND_KIND:  # has three  dvm.OPERAND_KIND=0x100
+                    if src_register_pair[0] & OPERAND_KIND:  # has three  dvm.OPERAND_KIND=0x100
                         src_operand = src_register_pair[0] & (
-                            ~dvm.OPERAND_KIND)  # Clear "OPERAND_KIND" bit, equal to src_operand = src_register_pair[0]- 0x100
+                            ~OPERAND_KIND)  # Clear "OPERAND_KIND" bit, equal to src_operand = src_register_pair[0]- 0x100
                         immediate_value = src_register_pair[2]
                         self._register[dst_register_number] = self.strip_string(immediate_value)
                         # print("### register[" + str(dst_register_number) + "] = " + str(src_register_pair[2]) + " ###")
                     else:
-                        if src_register_pair[0] == dvm.OPERAND_LITERAL:  # should always be "dvm.OPERAND_LITERAL"
+                        if src_register_pair[0] == OPERAND_LITERAL:  # should always be "dvm.OPERAND_LITERAL"
                             immediate_value = src_register_pair[1]
                             self._register[dst_register_number] = self.strip_string(immediate_value)
                             # print("### register[" + str(dst_register_number) + "] = " + str(src_register_pair[1]) + " ###")
 
             elif 0x0a <= ins <= 0x0d:  # [move-result vAA] or [move-result-wide vAA] or [move-result-object vAA] or [move-exception vAA]
-                # reg_list[0][0] would always be "dvm.OPERAND_REGISTER", so we don't need to check
+                # reg_list[0][0] would always be a register operand, so we don't need to check
                 register_number = reg_list[0][1]
                 self._register[register_number] = None
 
             elif (0x44 <= ins <= 0x4A) or (0x52 <= ins <= 0x58) or (
                     0x60 <= ins <= 0x66):  # [aget] or [aget-xxxx] or [iget] or [iget-xxxx] or [sget] or [sget-xxxx]
-                # reg_list[0][0] would always be "dvm.OPERAND_REGISTER", so we don't need to check
+                # reg_list[0][0] would always be a register operand, so we don't need to check
                 register_number = reg_list[0][1]
                 self._register[register_number] = None
 
@@ -162,7 +180,7 @@ class RegisterAnalyzerVMImmediateValue(object):
                                                                                        instance_class_idx)
 
             elif ins == 0x22:  # [new-instance vA, Lclass/name;]
-                # reg_list[0][0] would always be "dvm.OPERAND_REGISTER", so we don't need to check
+                # reg_list[0][0] would always be a register operand, so we don't need to check
                 register_number = reg_list[0][1]
                 new_instance_class_idx = reg_list[1][1]
                 new_instance_class_name = reg_list[1][2]
@@ -173,7 +191,7 @@ class RegisterAnalyzerVMImmediateValue(object):
             elif ins == 0x6e:  # [invoke-virtual]
                 register_number = reg_list[0][1]
                 operands = reg_list[-1]
-                if (operands[0] == dvm.OPERAND_KIND) and (register_number in self._register):
+                if (operands[0] == OPERAND_KIND) and (register_number in self._register):
                     clz_invoked = self._register[register_number]
                     if self.is_class_container(clz_invoked):
                         clz_invoked.add_invoke_method(operands[-1])
@@ -261,7 +279,7 @@ class RegisterAnalyzerVMImmediateValue(object):
         try:
             last_ins = self.__ins_stack.get()[1]
             for ins in last_ins:
-                if ins[0] == dvm.OPERAND_REGISTER:
+                if ins[0] == OPERAND_REGISTER:
                     l.append(self.get_register_value(ins[1]))  # ins[1] is the register number
                 else:
                     l.append(None)
@@ -296,12 +314,16 @@ class RegisterAnalyzerVMImmediateValue(object):
             return None
 
 
-def get_paths(method_class_analysis_list: [analysis.MethodClassAnalysis]):
+def get_paths(method_class_analysis_list: [analysis.MethodAnalysis]):
     results = []
     regex_excluded_class_names = re.compile(constants.STR_REGEXP_TYPE_EXCLUDE_CLASSES)
     for method_class_analysis in method_class_analysis_list:
         for source_class_analysis, source_method, offset in method_class_analysis.get_xref_from():
-            
+            # Androguard 4.x returns MethodAnalysis objects in cross references.
+            # Normalize to encoded method objects so downstream logic can use legacy helpers.
+            if hasattr(source_method, "get_method"):
+                source_method = source_method.get_method()
+
             if not regex_excluded_class_names.match(source_class_analysis.name):
                 results.append({
                     "src_method": source_method,
@@ -312,12 +334,15 @@ def get_paths(method_class_analysis_list: [analysis.MethodClassAnalysis]):
 
 
 def trace_register_value_by_param_in_method_class_analysis_list(
-        method_class_analysis_list: [analysis.MethodClassAnalysis]):
+        method_class_analysis_list: [analysis.MethodAnalysis]):
     paths = get_paths(method_class_analysis_list)
     results = []
 
     for source_path in paths:
         method = source_path['src_method']
+
+        if hasattr(method, "get_method"):
+            method = method.get_method()
         max_trace = source_path['idx']
 
         if (method.get_class_name() is None) \
@@ -340,6 +365,9 @@ def trace_register_value_by_param_in_paths(paths: []):
 
     for source_path in paths:
         method = source_path['src_method']
+
+        if hasattr(method, "get_method"):
+            method = method.get_method()
         max_trace = source_path['idx']
 
         if (method.get_class_name() is None) \

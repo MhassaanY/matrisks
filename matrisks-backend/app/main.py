@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 from app.database import Base, engine, SessionLocal
 from app.services.auth import hash_password
+from app.models import User, AIAnalysisResult  # Import models for database initialization
 import os
 
 app = FastAPI(
@@ -16,16 +17,32 @@ app = FastAPI(
 )
 
 # Configure CORS
-origins = [
-    "http://localhost:5173",  # Default Vite dev server
-    "http://localhost:5174",  # Alternative port when 5173 is in use
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",  # Alternative port when 5173 is in use
+default_local_origins = [
+    "http://localhost",
+    "https://localhost",
+    "http://127.0.0.1",
+    "https://127.0.0.1",
 ]
+
+extra_origins = [origin.strip() for origin in os.environ.get("CORS_ORIGINS", "").split(",") if origin.strip()]
+
+allow_origins = []
+
+# Include explicit ports for common local development setups
+for base_origin in default_local_origins:
+    allow_origins.extend([
+        f"{base_origin}:5173",
+        f"{base_origin}:5174",
+        f"{base_origin}:4173",
+    ])
+
+allow_origins.extend(default_local_origins)
+allow_origins.extend(extra_origins)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allow_origins,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -40,6 +57,12 @@ app.include_router(analysis.router)
 @app.get("/")
 async def root():
     return {"message": "Welcome to Matrisks API"}
+
+
+@app.get("/health")
+async def health_check():
+    """Simple health check endpoint for uptime probes."""
+    return {"status": "ok"}
 
 @app.on_event("startup")
 def on_startup():

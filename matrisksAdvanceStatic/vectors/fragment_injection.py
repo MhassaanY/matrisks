@@ -1,6 +1,7 @@
 import re
 
 import staticDVM
+import helper_functions
 from vector_base import VectorBase
 from constants import *
 
@@ -37,7 +38,7 @@ class Vector(VectorBase):
                             cls.get_superclassname() == "Lcom/actionbarsherlock/app/SherlockPreferenceActivity;"):
                         boolHas_isValidFragment = False
                         method_isValidFragment = None
-                        for method in cls.get_methods():
+                        for method in helper_functions.iter_encoded_methods(cls):
                             if (method.get_name() == "isValidFragment") and (
                                     method.get_descriptor() == "(Ljava/lang/String;)Z"):
                                 boolHas_isValidFragment = True

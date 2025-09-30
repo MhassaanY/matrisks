@@ -283,7 +283,7 @@ class Vector(VectorBase):
             dict_X509Certificate_class_name_to_caller_mapping = {}
 
             for dalvik in self.dalvik:
-                for method in dalvik.get_methods():
+                for method in dalvik.get_encoded_methods():
                     for i in method.get_instructions():  # method.get_instructions(): Instruction
                         if i.get_op_value() == 0x22:  # 0x22 = "new-instance"
                             if i.get_string() in list_X509Certificate_merge_list:

@@ -209,14 +209,29 @@
 }
 
 /* Analysis buttons container */
-.analysisButtonsContainer {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-}
+  .analysisButtonsContainer {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    max-width: none;
+    padding: 0 1rem;
+  }
+
+  .aiStatsWidget {
+    margin: 20px 1rem 0;
+    padding: 16px;
+  }
+
+  .aiStatsGrid {
+    gap: 12px;
+  }
+
+  .aiStatNumber {
+    font-size: 20px;
+  }
+
+  .aiStatLabel {
+    font-size: 11px;
+  }
 
 /* Analysis button styles */
 .analysisButton {
@@ -369,6 +384,67 @@
   }
 }
 
+/* AI Stats Widget */
+.aiStatsWidget {
+  background: var(--dark-card-bg);
+  border-radius: 16px;
+  padding: 20px;
+  margin: 30px auto 0;
+  max-width: 600px;
+  border: 1px solid var(--dark-border);
+  backdrop-filter: blur(10px);
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.6s var(--transition-bezier);
+}
+
+.aiStatsWidget.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.aiStatsTitle {
+  text-align: center;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--dark-text);
+  margin: 0 0 16px 0;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.aiStatsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.aiStatItem {
+  text-align: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.aiStatNumber {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--dark-text);
+  margin-bottom: 4px;
+}
+
+.aiStatLabel {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--dark-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive design */
 @media (max-width: 768px) {
   .dashboardHeader h1 {
     font-size: 2.5rem;

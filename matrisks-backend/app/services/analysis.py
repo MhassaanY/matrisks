@@ -6,6 +6,7 @@ import json
 import subprocess
 import tempfile
 import shutil
+import uuid
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -108,15 +109,21 @@ class AnalysisService:
         
     def analyze_apk(self, apk_file_path: str, analysis_type: str = "basic", user_id: int = None, original_filename: str = None) -> Dict[str, Any]:
         """
-        Analyze an APK file using BasicStatic engine
+        Analyze an APK file using BasicStatic engine or AI malware detection
         
         Args:
             apk_file_path: Path to the APK file
             analysis_type: Type of analysis (basic, advanced, dynamic, malware)
+            user_id: ID of the user performing analysis
+            original_filename: Original filename of the uploaded APK
             
         Returns:
             Dictionary containing analysis results
         """
+        # Handle AI malware detection separately
+        if analysis_type == "malware":
+            return self._analyze_with_ai(apk_file_path, user_id, original_filename)
+            
         try:
             # Extract APK metadata before analysis
             apk_metadata = self._extract_apk_metadata(apk_file_path, original_filename)
@@ -135,6 +142,7 @@ class AnalysisService:
                     engine_path = self.basicstatic_path
 
                 self._engine_path = engine_path
+                # Use the backend venv which has all required dependencies
                 self._python_path = self.basicstatic_path.parent / "matrisks-backend" / "venv" / "bin" / "python3"
                 self._matrisks_script = engine_path / "matrisks.py"
 
@@ -170,15 +178,25 @@ class AnalysisService:
                 # Update manifest.json with APK metadata and user info
                 self._update_manifest_with_metadata(apk_metadata, user_id)
                 
+                # Get the actual scan directory name as analysis ID
+                latest_scan_dir = self._get_latest_scan_directory()
+                analysis_id = latest_scan_dir.name if latest_scan_dir else str(uuid.uuid4())
+                
                 return {
                     "success": True,
+                    "analysis_id": analysis_id,
                     "analysis_type": analysis_type,
                     "timestamp": datetime.now().isoformat(),
-                    "raw_output": result.stdout,
+                    "file_info": {
+                        "filename": apk_metadata.get("apk_name", "Unknown APK"),
+                        "size": apk_metadata.get("file_size", 0),
+                        "upload_timestamp": apk_metadata.get("upload_timestamp")
+                    },
                     "results": analysis_results,
                     "report": report_data,
                     "report_content": self._get_report_content(report_data),
-                    "report_path": str(self._get_latest_scan_directory()) if self._get_latest_scan_directory() else None
+                    "report_path": str(self._get_latest_scan_directory()) if self._get_latest_scan_directory() else None,
+                    "raw_output": result.stdout
                 }
                 
         except subprocess.TimeoutExpired:
@@ -440,9 +458,138 @@ class AnalysisService:
             if csv_report_path and os.path.exists(csv_report_path):
                 with open(csv_report_path, 'r', encoding='utf-8', errors='ignore') as f:
                     content["csv_report"] = f.read()
-            
+                    
             return content
             
         except Exception as e:
             logger.warning(f"Failed to get report content: {e}")
             return {}
+    
+    def _analyze_with_ai(self, apk_file_path: str, user_id: int = None, original_filename: str = None) -> Dict[str, Any]:
+        """
+        Analyze APK using AI malware detection
+        
+        Args:
+            apk_file_path: Path to the APK file
+            user_id: ID of the user performing analysis
+            original_filename: Original filename of the uploaded APK
+            
+        Returns:
+            Dictionary containing AI analysis results
+        """
+        try:
+            from app.services.ai_analysis import ai_analysis_service
+            
+            logger.info(f"Starting AI malware analysis for user {user_id}: {original_filename}")
+            
+            # Perform AI analysis
+            ai_result = ai_analysis_service.analyze_apk(apk_file_path, user_id, original_filename)
+            
+            # Format result to match expected structure
+            if ai_result.get("success", False):
+                # Generate unique analysis ID
+                import uuid
+                analysis_id = str(uuid.uuid4())
+                
+                return {
+                    "success": True,
+                    "analysis_id": analysis_id,
+                    "analysis_type": "malware",
+                    "timestamp": ai_result.get("timestamp", datetime.now().isoformat()),
+                    "file_info": {
+                        "filename": original_filename or "Unknown APK",
+                        "size": ai_result.get("file_size", 0)
+                    },
+                    "results": {
+                        "prediction": ai_result.get("prediction", "unknown"),
+                        "confidence": ai_result.get("confidence", 0.0),
+                        "risk_level": ai_result.get("risk_level", "unknown"),
+                        "active_features": ai_result.get("active_features", 0),
+                        "total_features": ai_result.get("total_features", 215),
+                        "feature_analysis": ai_result.get("feature_analysis", {}),
+                        "model_info": ai_result.get("model_info", {})
+                    },
+                    "report": {
+                        "ai_analysis": ai_result,
+                        "summary": f"AI Malware Detection: {ai_result.get('prediction', 'unknown').title()} (Confidence: {ai_result.get('confidence', 0):.1%})"
+                    },
+                    "report_content": {
+                        "ai_report": self._format_ai_report(ai_result)
+                    }
+                }
+            else:
+                return {
+                    "success": False,
+                    "analysis_type": "malware",
+                    "error": ai_result.get("error", "AI analysis failed"),
+                    "timestamp": ai_result.get("timestamp", datetime.now().isoformat())
+                }
+                
+        except Exception as e:
+            logger.error(f"AI malware analysis failed: {e}")
+            return {
+                "success": False,
+                "analysis_type": "malware",
+                "error": f"AI analysis failed: {str(e)}",
+                "timestamp": datetime.now().isoformat()
+            }
+    
+    def _get_risk_level(self, prediction: str, confidence: float) -> str:
+        """Determine risk level based on AI prediction and confidence."""
+        if prediction == "error":
+            return "unknown"
+        elif prediction == "malware":
+            if confidence >= 0.8:
+                return "high"
+            elif confidence >= 0.6:
+                return "medium"
+            else:
+                return "low-medium"
+        else:  # benign
+            return "low"
+    
+    def _format_ai_report(self, ai_result: Dict[str, Any]) -> str:
+        """Format AI analysis result as a human-readable report."""
+        prediction = ai_result.get("prediction", "unknown").title()
+        confidence = ai_result.get("confidence", 0.0)
+        feature_summary = ai_result.get("feature_summary", {})
+        
+        report = f"""
+AI Malware Detection Report
+==========================
+
+APK File: {ai_result.get('apk_name', 'Unknown')}
+Analysis Time: {ai_result.get('timestamp', 'Unknown')}
+
+PREDICTION RESULTS:
+- Classification: {prediction}
+- Confidence Score: {confidence:.1%}
+- Risk Level: {self._get_risk_level(ai_result.get('prediction', 'unknown'), confidence).title()}
+
+FEATURE ANALYSIS:
+- Total Features Analyzed: {feature_summary.get('total_features', 215)}
+- Active Features Detected: {feature_summary.get('active_features', 0)}
+- Detection Rate: {(feature_summary.get('active_features', 0) / feature_summary.get('total_features', 215) * 100):.1f}%
+
+ACTIVE FEATURES:
+"""
+        
+        active_features = feature_summary.get("active_feature_list", [])
+        if active_features:
+            for i, feature in enumerate(active_features[:20], 1):  # Show top 20
+                report += f"  {i}. {feature}\n"
+            
+            if len(active_features) > 20:
+                report += f"  ... and {len(active_features) - 20} more features\n"
+        else:
+            report += "  No suspicious features detected\n"
+        
+        model_info = ai_result.get("model_info", {})
+        if model_info:
+            report += f"""
+MODEL INFORMATION:
+- Model Type: {model_info.get('model_type', 'Unknown')}
+- Feature Count: {model_info.get('feature_count', 'Unknown')}
+"""
+        
+        return report

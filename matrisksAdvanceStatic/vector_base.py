@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 
 from androguard.core.analysis.analysis import Analysis
-from androguard.core.bytecodes.apk import APK
-from androguard.core.bytecodes.dvm import DalvikVMFormat
+from androguard.core.apk import APK
+from androguard.core.dex import DEX
 
 from writer import Writer
 
@@ -15,7 +15,7 @@ class VectorBase(ABC):
     This abstract class is used to define vulnerability vectors for the Matrisks vulnerability scanner.
     """
 
-    def __init__(self, writer: Writer, apk: APK, dalvik: DalvikVMFormat, analysis: Analysis, vector_name: str, args: any = None, int_min_sdk: int = 1, int_target_sdk: int = 1, config: dict = None) -> None:
+    def __init__(self, writer: Writer, apk: APK, dalvik: DEX, analysis: Analysis, vector_name: str, args: any = None, int_min_sdk: int = 1, int_target_sdk: int = 1, config: dict = None) -> None:
         """
         Initialize the vector class with the resources needed for analysis.
         :param writer: Output writer.
@@ -41,7 +41,15 @@ class VectorBase(ABC):
         """
         Prints the xrefs from a StringAnalysis Object to the writer
         """
-        for xref_class, xref_method in string_analysis.get_xref_from():
+        for xref_entry in string_analysis.get_xref_from():
+            if len(xref_entry) == 3:
+                xref_class, xref_method, _ = xref_entry
+            else:
+                xref_class, xref_method = xref_entry
+
+            if hasattr(xref_method, "get_method"):
+                xref_method = xref_method.get_method()
+
             source_classes_and_functions = (
                     xref_class.name + "->" + xref_method.get_name() + xref_method.get_descriptor())
             self.writer.write("    ->From class: " + source_classes_and_functions)
@@ -58,7 +66,7 @@ class VectorBase(ABC):
 
     @property
     @abstractmethod
-    def tags(self) -> [str]:
+    def tags(self) -> list[str]:
         """
         Tags associated with the vulnerability vector (e.g. one or more categories).
         :return: str

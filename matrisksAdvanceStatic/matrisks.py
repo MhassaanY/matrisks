@@ -164,7 +164,16 @@ def __analyze(writer, args, config):
 
     writer.writeInf_ForceNoPrint("time_starting_analyze", datetime.now(timezone.utc))
 
-    a, d, dx = misc.AnalyzeAPK(apk_Path)
+    # Handle androguard 4.x compatibility - AnalyzeAPK returns generator
+    try:
+        a, d, dx = misc.AnalyzeAPK(apk_Path)
+    except TypeError:
+        # For newer androguard versions that return generator
+        result = misc.AnalyzeAPK(apk_Path)
+        if hasattr(result, '__iter__') and not isinstance(result, (str, bytes)):
+            a, d, dx = list(result)
+        else:
+            a, d, dx = result
 
     writer.update_analyze_status("starting_apk")
 

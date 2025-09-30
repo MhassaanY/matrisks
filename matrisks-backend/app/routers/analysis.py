@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any
 import tempfile
 import os
+import logging
 from pathlib import Path
 from datetime import datetime
 
@@ -14,6 +15,8 @@ from app.database import get_db
 from app.schemas import UserOut
 from app.routers.auth import get_current_user
 from app.services.analysis import AnalysisService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/analysis",
@@ -95,6 +98,106 @@ async def scan_apk(
             except:
                 pass
 
+
+@router.get("/result/{analysis_id}")
+async def get_analysis_result(
+    analysis_id: str,
+    db: Session = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get analysis result by ID
+    
+    Args:
+        analysis_id: Analysis ID (can be scan directory name or database ID)
+        db: Database session
+        current_user: Current authenticated user
+        
+    Returns:
+        Analysis result data
+    """
+    try:
+        # First check if it's a database analysis (AI analysis)
+        if analysis_id.isdigit():
+            from app.services.ai_analysis import ai_analysis_service
+            
+            # Get AI analysis from database
+            ai_result = ai_analysis_service.get_analysis_by_id(int(analysis_id), current_user.id, db)
+            if ai_result:
+                return {
+                    "success": True,
+                    "analysis_type": "AI Malware Detection",
+                    "data": ai_result
+                }
+        
+        # Check if it's a static analysis scan directory
+        project_root = Path(__file__).parent.parent.parent.parent
+        
+        for engine_name, engine_path in [
+            ("Basic Static", project_root / "matrisksBasicStatic"),
+            ("Advanced Static", project_root / "matrisksAdvanceStatic")
+        ]:
+            results_dir = engine_path / "scanned_results"
+            scan_dir = results_dir / analysis_id
+            
+            if scan_dir.exists() and scan_dir.is_dir():
+                # Read manifest.json to verify ownership
+                manifest_path = scan_dir / "manifest.json"
+                if manifest_path.exists():
+                    try:
+                        import json
+                        with open(manifest_path, 'r') as f:
+                            manifest_data = json.load(f)
+                        
+                        # Check if this belongs to current user
+                        if str(manifest_data.get("user_id")) != str(current_user.id):
+                            continue
+                        
+                        # Load the JSON report if it exists
+                        json_report_path = scan_dir / "report.json"
+                        report_data = {}
+                        
+                        if json_report_path.exists():
+                            try:
+                                with open(json_report_path, 'r') as f:
+                                    report_data = json.load(f)
+                            except Exception as e:
+                                logger.warning(f"Failed to load JSON report: {e}")
+                        
+                        return {
+                            "success": True,
+                            "analysis_type": engine_name,
+                            "data": {
+                                "id": analysis_id,
+                                "manifest": manifest_data,
+                                "report": report_data,
+                                "available_formats": [
+                                    ext for ext in ["html", "json", "csv", "pdf"]
+                                    if (scan_dir / f"report.{ext}").exists()
+                                ]
+                            }
+                        }
+                    
+                    except Exception as e:
+                        logger.warning(f"Failed to read manifest for {analysis_id}: {e}")
+                        continue
+        
+        # Not found
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Analysis result not found or access denied: {analysis_id}"
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching analysis result {analysis_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch analysis result: {str(e)}"
+        )
+
+
 @router.get("/types")
 async def get_analysis_types() -> Dict[str, Any]:
     """
@@ -125,9 +228,9 @@ async def get_analysis_types() -> Dict[str, Any]:
             },
             {
                 "id": "malware",
-                "name": "Malware Detection",
-                "description": "Scan for malware using ML-powered detection",
-                "estimated_time": "2-3 minutes"
+                "name": "AI Malware Detection",
+                "description": "Advanced AI-powered malware classification with 98%+ accuracy",
+                "estimated_time": "1-2 minutes"
             }
         ]
     }
@@ -356,4 +459,122 @@ async def get_user_analysis_history(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to fetch analysis history: {str(e)}"
+        )
+
+
+@router.get("/ai/health")
+async def get_ai_health() -> Dict[str, Any]:
+    """
+    Get AI malware detection service health status
+    
+    Returns:
+        AI service health information
+    """
+    try:
+        from app.services.ai_analysis import ai_analysis_service
+        
+        health_status = ai_analysis_service.get_health_status()
+        return {
+            "success": True,
+            "ai_service": health_status
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "ai_service": {
+                "status": "error",
+                "ai_available": False,
+                "error": str(e)
+            }
+        }
+
+
+@router.get("/ai/info")
+async def get_ai_model_info() -> Dict[str, Any]:
+    """
+    Get AI model information
+    
+    Returns:
+        AI model details and capabilities
+    """
+    try:
+        from app.services.ai_analysis import ai_analysis_service
+        
+        model_info = ai_analysis_service.get_model_info()
+        return {
+            "success": True,
+            "model_info": model_info
+        }
+        
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "model_info": {"available": False}
+        }
+
+
+@router.get("/ai/history")
+async def get_ai_analysis_history(
+    limit: int = 50,
+    db: Session = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get AI analysis history for current user
+    
+    Args:
+        limit: Maximum number of records to return
+        db: Database session
+        current_user: Current authenticated user
+        
+    Returns:
+        AI analysis history
+    """
+    try:
+        from app.services.ai_analysis import ai_analysis_service
+        
+        history = ai_analysis_service.get_analysis_history(current_user.id, db, limit)
+        return {
+            "success": True,
+            "data": history,
+            "total": len(history)
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch AI analysis history: {str(e)}"
+        )
+
+
+@router.get("/ai/statistics")
+async def get_ai_analysis_statistics(
+    db: Session = Depends(get_db),
+    current_user: UserOut = Depends(get_current_user)
+) -> Dict[str, Any]:
+    """
+    Get AI analysis statistics for current user
+    
+    Args:
+        db: Database session
+        current_user: Current authenticated user
+        
+    Returns:
+        AI analysis statistics
+    """
+    try:
+        from app.services.ai_analysis import ai_analysis_service
+        
+        stats = ai_analysis_service.get_analysis_statistics(current_user.id, db)
+        return {
+            "success": True,
+            "statistics": stats
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to fetch AI analysis statistics: {str(e)}"
         )
