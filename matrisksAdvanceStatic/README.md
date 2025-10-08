@@ -94,13 +94,6 @@ python Matrisks_ReportByVectorKey.py -v WEBVIEW_RCE -l Critical -b 30072020 -t B
 
 ![Matrisks_ReportByVectorKey.py](http://www.matrisks.com/images/v1.0.0/MassiveAnalysisTool1.png)
 
-## Authors
-[Original](https://github.com/Matrisks/Matrisks_Framework) (v1.0.0):
-- Yu-Cheng Lin ([@Matrisks](https://github.com/Matrisks))
-
-Improved (v2.0.0):
-- Jasper van Thuijl ([@jvthuijl](https://github.com/jvthuijl))
-- Noam Drong ([@ndrong](https://github.com/ndrong))
 
 ## Licenses
 
