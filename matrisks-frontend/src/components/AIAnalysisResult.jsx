@@ -43,13 +43,13 @@ const AIAnalysisResult = ({ result, onNewAnalysis }) => {
     <div className={styles.resultContainer}>
       <div className={styles.header}>
         <h2 className={styles.title}>
-          🤖 AI Malware Detection Results
+          AI Malware Detection Results
         </h2>
         <button 
           className={styles.newAnalysisBtn}
           onClick={onNewAnalysis}
         >
-          📊 New Analysis
+          New Analysis
         </button>
       </div>
 
@@ -62,7 +62,7 @@ const AIAnalysisResult = ({ result, onNewAnalysis }) => {
               result.prediction === 'malware' ? styles.malware : styles.benign
             }`}
           >
-            {result.prediction === 'malware' ? '🦠 MALWARE' : '✅ BENIGN'}
+            {result.prediction === 'malware' ? 'MALWARE' : 'BENIGN'}
           </div>
         </div>
 
@@ -97,7 +97,7 @@ const AIAnalysisResult = ({ result, onNewAnalysis }) => {
       <div className={styles.detailsGrid}>
         {/* File Information */}
         <div className={styles.detailCard}>
-          <h3 className={styles.cardTitle}>📱 File Information</h3>
+          <h3 className={styles.cardTitle}>File Information</h3>
           <div className={styles.infoRow}>
             <span className={styles.label}>File Size:</span>
             <span className={styles.value}>{formatFileSize(result.file_size)}</span>
@@ -114,7 +114,7 @@ const AIAnalysisResult = ({ result, onNewAnalysis }) => {
 
         {/* Feature Analysis */}
         <div className={styles.detailCard}>
-          <h3 className={styles.cardTitle}>🔍 Feature Analysis</h3>
+          <h3 className={styles.cardTitle}>Feature Analysis</h3>
           <div className={styles.infoRow}>
             <span className={styles.label}>Active Features:</span>
             <span className={styles.value}>{result.active_features || 0}</span>
@@ -136,7 +136,7 @@ const AIAnalysisResult = ({ result, onNewAnalysis }) => {
 
         {/* Model Information */}
         <div className={styles.detailCard}>
-          <h3 className={styles.cardTitle}>🤖 Model Information</h3>
+          <h3 className={styles.cardTitle}>Model Information</h3>
           <div className={styles.infoRow}>
             <span className={styles.label}>Model Type:</span>
             <span className={styles.value}>
@@ -146,7 +146,7 @@ const AIAnalysisResult = ({ result, onNewAnalysis }) => {
           <div className={styles.infoRow}>
             <span className={styles.label}>Model Status:</span>
             <span className={styles.value}>
-              {result.model_info?.model_loaded ? '✅ Loaded' : '❌ Not Loaded'}
+              {result.model_info?.model_loaded ? 'Loaded' : 'Not Loaded'}
             </span>
           </div>
           <div className={styles.infoRow}>
@@ -160,11 +160,11 @@ const AIAnalysisResult = ({ result, onNewAnalysis }) => {
 
       {/* Recommendation Section */}
       <div className={styles.recommendationCard}>
-        <h3 className={styles.cardTitle}>💡 Recommendations</h3>
+        <h3 className={styles.cardTitle}>Recommendations</h3>
         {result.prediction === 'malware' ? (
           <div className={styles.malwareRecommendation}>
             <p className={styles.warning}>
-              ⚠️ <strong>This APK has been classified as potentially malicious!</strong>
+              <strong>This APK has been classified as potentially malicious!</strong>
             </p>
             <ul className={styles.recommendations}>
               <li>Do not install this application on your device</li>
@@ -179,7 +179,7 @@ const AIAnalysisResult = ({ result, onNewAnalysis }) => {
         ) : (
           <div className={styles.benignRecommendation}>
             <p className={styles.success}>
-              ✅ <strong>This APK appears to be clean.</strong>
+              <strong>This APK appears to be clean.</strong>
             </p>
             <ul className={styles.recommendations}>
               <li>The file passed AI malware detection</li>

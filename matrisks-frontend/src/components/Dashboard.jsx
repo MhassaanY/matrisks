@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import { aiApi } from '../services/api';
+import SharedNavbar from './SharedNavbar';
 import styles from './Dashboard.module.css';
 
 const Dashboard = () => {
@@ -13,8 +14,12 @@ const Dashboard = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [aiStats, setAiStats] = useState(null);
   const [showAiStats, setShowAiStats] = useState(false);
+  const [expandedCard, setExpandedCard] = useState(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
   const dashboardRef = useRef(null);
   const buttonsRef = useRef([]);
+  const originalTransforms = useRef([]);
+  const originalPositions = useRef([]);
 
   // Update date every minute
   useEffect(() => {
@@ -27,7 +32,40 @@ const Dashboard = () => {
     setIsVisible(true);
     // Load AI stats
     loadAIStats();
+    
+    // Initialize stacked card positions
+    setTimeout(() => {
+      initializeCardPositions();
+    }, 100);
   }, []);
+
+  // Initialize stacked card positions
+  const initializeCardPositions = () => {
+    const positions = [
+      { top: '0', left: '0%', rotate: -5, zIndex: 4, shadow: '0 10px 40px rgba(0,0,0,0.3)' },
+      { top: '20px', left: '25%', rotate: 4, zIndex: 3, shadow: '0 15px 45px rgba(0,0,0,0.3)' },
+      { top: '10px', left: '50%', rotate: -4, zIndex: 2, shadow: '0 20px 50px rgba(0,0,0,0.3)' },
+      { top: '30px', left: '75%', rotate: 5, zIndex: 1, shadow: '0 25px 55px rgba(0,0,0,0.3)' }
+    ];
+
+    buttonsRef.current.forEach((card, index) => {
+      if (!card) return;
+      
+      const pos = positions[index % positions.length];
+      
+      card.style.top = pos.top;
+      card.style.left = pos.left;
+      
+      let transform = `rotate(${pos.rotate}deg)`;
+      
+      originalTransforms.current[index] = transform;
+      originalPositions.current[index] = pos;
+      
+      card.style.transform = transform;
+      card.style.zIndex = pos.zIndex;
+      card.style.boxShadow = pos.shadow;
+    });
+  };
 
   // Load AI statistics
   const loadAIStats = async () => {
@@ -44,59 +82,56 @@ const Dashboard = () => {
   };
 
   // Analysis options data
-  const analysisOptions = [
+    const analysisOptions = [
     {
-      id: 'basic',
-      title: 'Basic Analysis',
-      description: 'Run basic file scanning & metadata extraction',
-      color: '#4a90e2',
-      ariaLabel: 'Start basic analysis - Quick scan of APK files with basic categorization'
+      type: 'basic',
+      title: 'Basic Static Analysis',
+      description: 'Quick security scan of manifest and permissions',
+      icon: '🔍',
+      gradient: 'linear-gradient(135deg, rgba(26, 26, 26, 0.7) 0%, rgba(45, 45, 45, 0.7) 100%)',
+      borderColor: '#FF5722',
+      glowColor: 'rgba(255, 87, 34, 0.2)'
     },
     {
-      id: 'advanced-static',
-      title: 'Advanced Analysis',
-      description: 'Perform in-depth code analysis & vulnerability scanning',
-      color: '#9c27b0',
-      ariaLabel: 'Begin advanced static analysis - Detailed code inspection and vulnerability detection'
+      type: 'advanced',
+      title: 'Advanced Static Analysis',
+      description: 'Deep code analysis with OWASP MASVS checks',
+      icon: '🛡️',
+      gradient: 'linear-gradient(135deg, rgba(26, 26, 26, 0.7) 0%, rgba(45, 45, 45, 0.7) 100%)',
+      borderColor: '#FF8A65',
+      glowColor: 'rgba(255, 138, 101, 0.2)'
     },
     {
-      id: 'dynamic',
+      type: 'dynamic',
       title: 'Dynamic Analysis',
-      description: 'Monitor real-time behavior & detect runtime threats',
-      color: '#ff9800',
-      ariaLabel: 'Launch dynamic analysis - Real-time application behavior monitoring'
+      description: 'Runtime behavior monitoring and testing',
+      icon: '⚡',
+      gradient: 'linear-gradient(135deg, rgba(26, 26, 26, 0.7) 0%, rgba(45, 45, 45, 0.7) 100%)',
+      borderColor: '#BF360C',
+      glowColor: 'rgba(191, 54, 12, 0.2)'
     },
     {
-      id: 'malware-detection',
-      title: 'Malware Detection',
-      description: 'Scan for malware using ML-powered detection',
-      color: '#e53935',
-      ariaLabel: 'Start malware detection - Machine learning based threat detection'
+      type: 'ai_malware',
+      title: 'AI Malware Detection',
+      description: 'Machine learning-based threat detection',
+      icon: '🤖',
+      gradient: 'linear-gradient(135deg, rgba(26, 26, 26, 0.7) 0%, rgba(45, 45, 45, 0.7) 100%)',
+      borderColor: '#E64A19',
+      glowColor: 'rgba(230, 74, 25, 0.2)'
     }
   ];
 
-  const handleButtonSelect = (id, e) => {
-    // Create ripple effect
-    const button = e.currentTarget;
-    const rect = button.getBoundingClientRect();
-    const ripple = document.createElement('div');
-    ripple.className = styles.ripple;
-    ripple.style.left = `${e.clientX - rect.left}px`;
-    ripple.style.top = `${e.clientY - rect.top}px`;
-    ripple.style.backgroundColor = analysisOptions.find(opt => opt.id === id).color + '40';
-    button.appendChild(ripple);
-
-    setTimeout(() => button.removeChild(ripple), 1000);
-    
-    // Get the selected analysis type
-    const selectedOption = analysisOptions.find(opt => opt.id === id);
-    
+  const handleButtonSelect = (type, e) => {
     // Navigate to the Analysis page with the selected analysis type
     let analysisType;
-    if (id === 'malware-detection') {
+    if (type === 'ai_malware') {
       analysisType = 'Malware';
-    } else {
-      analysisType = selectedOption.title.split(' ')[0]; // Use the first word of the title (Basic, Advanced, Dynamic)
+    } else if (type === 'basic') {
+      analysisType = 'Basic';
+    } else if (type === 'advanced') {
+      analysisType = 'Advanced';
+    } else if (type === 'dynamic') {
+      analysisType = 'Dynamic';
     }
     
     navigate('/analysis', { 
@@ -104,7 +139,70 @@ const Dashboard = () => {
         analysisType: analysisType
       } 
     });
-    console.log(`Navigating to analysis with type: ${selectedOption.title}`);
+    console.log(`Navigating to analysis with type: ${analysisType}`);
+  };
+
+  const handleMouseEnter = (index) => {
+    if (isTransitioning || expandedCard === index) return;
+    
+    setIsTransitioning(true);
+    setExpandedCard(index);
+    const card = buttonsRef.current[index];
+    if (!card) {
+      setIsTransitioning(false);
+      return;
+    }
+    
+    const option = analysisOptions[index];
+    
+    // Smooth expansion to center
+    card.style.zIndex = '1000';
+    card.style.width = '85%';
+    card.style.maxWidth = '1100px';
+    card.style.minHeight = '280px';
+    card.style.left = '50%';
+    card.style.top = '50%';
+    card.style.transform = 'translate(-50%, -50%) rotate(0deg)';
+    card.style.boxShadow = `
+      0 40px 80px rgba(0, 0, 0, 0.6),
+      0 0 60px ${option.glowColor},
+      0 0 100px ${option.glowColor}
+    `;
+    card.style.border = `2px solid ${option.borderColor}`;
+    card.style.pointerEvents = 'auto';
+    
+    setTimeout(() => setIsTransitioning(false), 500);
+  };
+
+  const handleMouseLeave = (index) => {
+    if (isTransitioning) return;
+    
+    setIsTransitioning(true);
+    setExpandedCard(null);
+    const card = buttonsRef.current[index];
+    if (!card) {
+      setIsTransitioning(false);
+      return;
+    }
+    
+    const pos = originalPositions.current[index];
+    if (!pos) {
+      setIsTransitioning(false);
+      return;
+    }
+    
+    // Return to original position smoothly
+    card.style.transform = originalTransforms.current[index];
+    card.style.zIndex = pos.zIndex;
+    card.style.boxShadow = pos.shadow;
+    card.style.width = '350px';
+    card.style.minHeight = '260px';
+    card.style.left = pos.left;
+    card.style.top = pos.top;
+    card.style.border = `2px solid rgba(255, 255, 255, 0.1)`;
+    card.style.pointerEvents = 'auto';
+    
+    setTimeout(() => setIsTransitioning(false), 500);
   };
 
   return (
@@ -115,20 +213,8 @@ const Dashboard = () => {
       {/* Particle Background */}
       <div className={styles.particleBackground} />
       
-      {/* Dashboard Navbar */}
-      <nav className={styles.navbar}>
-        <div className={styles.navbarLeft}>
-          {/* Empty div for spacing */}
-        </div>
-        <div className={styles.navbarCenter}>
-          <h2 className={styles.dashboardTitle}>Dashboard</h2>
-        </div>
-        <div className={styles.navbarRight}>
-          <Link to="/profile" className={styles.navLink}>Profile</Link>
-          <Link to="/admin" className={styles.navLink}>Admin</Link>
-          <button onClick={logout} className={styles.navLink}>Logout</button>
-        </div>
-      </nav>
+      {/* Shared Navbar */}
+      <SharedNavbar />
 
       <main className={styles.dashboardContainer}>
         <header className={`${styles.dashboardHeader} ${isVisible ? styles.visible : ''}`}>
@@ -138,54 +224,65 @@ const Dashboard = () => {
           </p>
         </header>
         
-        <div className={styles.analysisButtonsContainer}>
-          {analysisOptions.map((option, index) => (
-            <button 
-              key={option.id}
-              ref={el => buttonsRef.current[index] = el}
-              className={`${styles.analysisButton} ${activeButton === option.id ? styles.activeButton : ''} ${isVisible ? styles.visible : ''}`}
-              style={{
-                '--button-color': option.color,
-                '--button-index': index
-              }}
-              onMouseEnter={() => setActiveButton(option.id)}
-              onMouseLeave={() => setActiveButton(null)}
-              onClick={(e) => handleButtonSelect(option.id, e)}
-              aria-label={option.ariaLabel}
-            >
-              <div className={styles.buttonGlow} />
-              <div className={styles.buttonContent}>
-                <h3 className={styles.buttonTitle}>{option.title}</h3>
-                <div className={`${styles.buttonTooltip} ${activeButton === option.id ? styles.showTooltip : ''}`}>
-                  {option.description}
+        <div className={styles.analysisStackContainer}>
+          <div className={styles.analysisStack}>
+            {analysisOptions.map((option, index) => (
+              <button 
+                key={option.type}
+                ref={el => buttonsRef.current[index] = el}
+                className={`${styles.analysisButton} ${expandedCard === index ? styles.expanded : ''} ${isVisible ? styles.visible : ''}`}
+                style={{
+                  '--button-color': option.color,
+                  '--button-gradient': option.gradient,
+                  '--glow-color': option.glowColor,
+                  '--border-color': option.borderColor,
+                  '--button-index': index,
+                  background: option.gradient,
+                  borderColor: option.borderColor
+                }}
+                onMouseEnter={() => handleMouseEnter(index)}
+                onMouseLeave={() => handleMouseLeave(index)}
+                onClick={(e) => handleButtonSelect(option.type, e)}
+                aria-label={option.title}
+              >
+                <div className={styles.cardGlow} style={{ background: option.glowColor }}></div>
+                <div className={styles.buttonContent}>
+                  <h3 className={styles.buttonTitle}>{option.title}</h3>
+                  <p className={`${styles.buttonDescription} ${expandedCard === index ? styles.expanded : ''}`}>
+                    {option.description}
+                  </p>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* AI Stats Widget - only show if user has AI analysis history */}
-        {showAiStats && aiStats && (
-          <div className={`${styles.aiStatsWidget} ${isVisible ? styles.visible : ''}`}>
-            <h3 className={styles.aiStatsTitle}>🤖 Your AI Analysis Summary</h3>
-            <div className={styles.aiStatsGrid}>
-              <div className={styles.aiStatItem}>
-                <div className={styles.aiStatNumber}>{aiStats.total_analyses}</div>
-                <div className={styles.aiStatLabel}>Total Scans</div>
-              </div>
-              <div className={styles.aiStatItem}>
-                <div className={styles.aiStatNumber}>{aiStats.malware_detected}</div>
-                <div className={styles.aiStatLabel}>Threats Found</div>
-              </div>
-              <div className={styles.aiStatItem}>
-                <div className={styles.aiStatNumber}>
-                  {(aiStats.average_confidence * 100).toFixed(0)}%
-                </div>
-                <div className={styles.aiStatLabel}>Avg Confidence</div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* History Navigation Section */}
+        <div className={styles.historyNavigation}>
+          <button 
+            className={styles.historyButton}
+            onClick={() => navigate('/profile')}
+          >
+            <svg className={styles.historyIcon} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>My Analysis History</span>
+          </button>
+          
+          {currentUser?.is_superuser && (
+            <button 
+              className={`${styles.historyButton} ${styles.adminButton}`}
+              onClick={() => navigate('/admin')}
+            >
+              <svg className={styles.historyIcon} xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              <span>All History (Admin)</span>
+            </button>
+          )}
+        </div>
+
+
       </main>
 
       <footer 

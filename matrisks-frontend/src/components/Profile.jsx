@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import SharedNavbar from './SharedNavbar';
 import styles from './Profile.module.css';
 import { getAnalysisHistory } from '../services/api'; // Import the API service
 
 const Profile = () => {
   const { currentUser, error, logout, updateProfile } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     first_name: '',
     last_name: '',
@@ -21,6 +23,9 @@ const Profile = () => {
   const [analysisHistory, setAnalysisHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [refreshTrigger, setRefreshTrigger] = useState(0); // Add a trigger to force refresh
+  const [activeSection, setActiveSection] = useState(
+    location.state?.section === 'history' ? 'history' : 'profile'
+  ); // 'profile' or 'history'
 
   // Function to fetch analysis history
   const fetchAnalysisHistory = async () => {
@@ -37,11 +42,15 @@ const Profile = () => {
       // Get the history from the API
       const history = await getAnalysisHistory();
       
+      console.log('[Profile] Received history:', history);
+      console.log('[Profile] History length:', history ? history.length : 0);
+      
       // Sort by timestamp (newest first)
       const sortedHistory = [...history].sort((a, b) => 
         new Date(b.timestamp) - new Date(a.timestamp)
       );
       
+      console.log('[Profile] Setting analysisHistory with', sortedHistory.length, 'items');
       setAnalysisHistory(sortedHistory);
       
     } catch (error) {
@@ -175,37 +184,12 @@ const Profile = () => {
       {/* Particle Background */}
       <div className={styles.particleBackground} />
       
-      {/* Dashboard Navbar */}
-      <nav className={styles.navbar}>
-        <div className={styles.navbarLeft}>
-          {/* Empty div for spacing */}
-        </div>
-        <div className={styles.navbarCenter}>
-          <h2 className={styles.dashboardTitle}>Dashboard</h2>
-        </div>
-        <div className={styles.navbarRight}>
-          <button 
-            onClick={() => navigate('/dashboard')} 
-            className={styles.navLink}
-          >
-            Dashboard
-          </button>
-          <button 
-            onClick={() => navigate('/admin')} 
-            className={styles.navLink}
-          >
-            Admin
-          </button>
-          <button 
-            onClick={() => { logout(); navigate('/signin'); }} 
-            className={styles.navLink}
-          >
-            Logout
-          </button>
-        </div>
-      </nav>
+      {/* Shared Navbar */}
+      <SharedNavbar activeProfileSection={activeSection} setActiveProfileSection={setActiveSection} />
 
       <main className={styles.profileContainer}>
+        {/* Edit Profile Section */}
+        {activeSection === 'profile' && (
         <div className={styles.profileSection}>
           <div className={styles.profileCard}>
             <h1 className={styles.profileTitle}>Edit Profile</h1>
@@ -325,8 +309,10 @@ const Profile = () => {
           </form>
           </div>
         </div>
+        )}
         
         {/* Analysis History Section - Separate Card */}
+        {activeSection === 'history' && (
         <div className={styles.historySection}>
           <div className={styles.historyCard}>
             <div className={styles.sectionHeader}>
@@ -377,6 +363,7 @@ const Profile = () => {
             )}
           </div>
         </div>
+        )}
       </main>
     </div>
   );

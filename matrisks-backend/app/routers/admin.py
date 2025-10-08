@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
 import os
+import json
 from pathlib import Path
 from datetime import datetime
 
@@ -134,13 +135,15 @@ async def get_analysis_engines(
 
 @router.get("/analysis-history")
 async def get_analysis_history(
-    current_user: UserOut = Depends(get_current_user)
+    current_user: UserOut = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
     """
-    Get analysis history with metadata (admin only)
+    Get analysis history with metadata (admin only, includes both static and AI analyses)
     
     Args:
         current_user: Current authenticated user
+        db: Database session
         
     Returns:
         List of analysis records with metadata
@@ -159,10 +162,11 @@ async def get_analysis_history(
     
     analysis_history = []
     
-    # Scan both basic and advanced static directories for analysis results
+    # 1. Scan both basic, advanced static, and AI directories for analysis results
     for engine_name, engine_path in [
         ("Basic Static", project_root / "matrisksBasicStatic"),
-        ("Advanced Static", project_root / "matrisksAdvanceStatic")
+        ("Advanced Static", project_root / "matrisksAdvanceStatic"),
+        ("AI Malware Detection", project_root / "ai_based_malware_detection")
     ]:
         results_dir = engine_path / "scanned_results"
         if results_dir.exists():
@@ -173,11 +177,11 @@ async def get_analysis_history(
                     manifest_data = {}
                     if manifest_path.exists():
                         try:
-                            import json
                             with open(manifest_path, 'r') as f:
                                 manifest_data = json.load(f)
-                        except:
-                            pass
+                        except Exception as e:
+                            print(f"Failed to read manifest for {scan_dir.name}: {e}")
+                            continue
                     
                     # Get file info from manifest
                     apk_name = manifest_data.get("apk_name", "Unknown APK")
@@ -189,7 +193,8 @@ async def get_analysis_history(
                         if (scan_dir / f"report.{format_ext}").exists():
                             available_formats.append(format_ext)
                     
-                    analysis_history.append({
+                    # Build entry data
+                    entry = {
                         "id": scan_dir.name,
                         "apk_name": apk_name,
                         "file_size": file_size,
@@ -201,7 +206,48 @@ async def get_analysis_history(
                         "scan_path": str(scan_dir),
                         "user": f"User {manifest_data.get('user_id', 'Unknown')}",
                         "engine_path": str(engine_path)
-                    })
+                    }
+                    
+                    # Add AI-specific fields if this is an AI scan
+                    if engine_name == "AI Malware Detection":
+                        entry["prediction"] = manifest_data.get("prediction", "unknown")
+                        entry["confidence"] = manifest_data.get("confidence", 0.0)
+                    
+                    analysis_history.append(entry)
+    
+    # 2. Also get AI malware detection results from database (for backward compatibility)
+    # This catches any AI scans that might not have scan directories yet
+    try:
+        from app.models import AIAnalysisResult
+        ai_results = db.query(AIAnalysisResult)\
+                       .order_by(AIAnalysisResult.analysis_timestamp.desc())\
+                       .limit(100).all()
+        
+        # Get existing scan IDs to avoid duplicates
+        existing_scan_ids = {entry["id"] for entry in analysis_history}
+        
+        # Add AI results that don't already have a scan directory
+        for ai_record in ai_results:
+            scan_id = f"SCAN-{ai_record.analysis_timestamp.strftime('%Y%m%d-%H%M%S')}-{ai_record.id}" if ai_record.analysis_timestamp else f"SCAN-{ai_record.id}"
+            
+            # Only add if not already in the list
+            if scan_id not in existing_scan_ids:
+                analysis_history.append({
+                    "id": scan_id,
+                    "apk_name": ai_record.apk_name,
+                    "file_size": ai_record.file_size or 0,
+                    "analysis_type": "AI Malware Detection",
+                    "timestamp": ai_record.analysis_timestamp.isoformat() if ai_record.analysis_timestamp else datetime.now().isoformat(),
+                    "status": "completed" if ai_record.prediction != 'error' else 'error',
+                    "available_formats": ["json"],  # Database records have JSON data
+                    "scan_path": "",
+                    "user": f"User {ai_record.user_id}",
+                    "engine_path": "",
+                    "prediction": ai_record.prediction,
+                    "confidence": ai_record.confidence
+                })
+    except Exception as e:
+        print(f"Error loading AI analysis history: {e}")
     
     # Sort by timestamp (newest first)
     analysis_history.sort(key=lambda x: x["timestamp"], reverse=True)

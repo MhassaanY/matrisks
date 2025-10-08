@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import SharedNavbar from './SharedNavbar';
 import styles from './Admin.module.css';
 import { getUsers, deleteUser, getAnalysisEngines, getAdminAnalysisHistory } from '../services/api';
 
@@ -67,10 +68,12 @@ const Admin = () => {
     try {
       setLoading(true);
       const historyData = await getAdminAnalysisHistory();
+      console.log('[Admin] Received history data:', historyData);
+      console.log('[Admin] History length:', historyData ? historyData.length : 0);
       setAnalysisHistory(historyData);
       setMessage({ type: '', text: '' });
     } catch (error) {
-      console.error('Failed to fetch analysis history:', error);
+      console.error('[Admin] Failed to fetch analysis history:', error);
       setMessage({ type: 'error', text: 'Failed to load analysis history' });
     } finally {
       setLoading(false);
@@ -298,57 +301,10 @@ const Admin = () => {
       {/* Particle Background */}
       <div className={styles.particleBackground} />
       
-      {/* Dashboard Navbar */}
-      <nav className={styles.navbar}>
-        <div className={styles.navbarLeft}>
-          {/* Empty div for spacing */}
-        </div>
-        <div className={styles.navbarCenter}>
-          <h2 className={styles.dashboardTitle}>Admin Dashboard</h2>
-        </div>
-        <div className={styles.navbarRight}>
-          <button 
-            onClick={() => navigate('/dashboard')} 
-            className={styles.navLink}
-          >
-            Dashboard
-          </button>
-          <button 
-            onClick={() => navigate('/profile')} 
-            className={styles.navLink}
-          >
-            Profile
-          </button>
-          <button 
-            onClick={() => navigate('/signin')} 
-            className={styles.navLink}
-          >
-            Logout
-          </button>
-        </div>
-      </nav>
+      {/* Shared Navbar */}
+      <SharedNavbar activeAdminSection={activeSection} setActiveAdminSection={setActiveSection} />
 
       <main className={styles.adminContainer}>
-        <div className={styles.adminControls}>
-          <button 
-            className={`${styles.sectionButton} ${activeSection === 'users' ? styles.active : ''}`}
-            onClick={() => setActiveSection('users')}
-          >
-            Manage User Accounts
-          </button>
-          <button 
-            className={`${styles.sectionButton} ${activeSection === 'engines' ? styles.active : ''}`}
-            onClick={() => setActiveSection('engines')}
-          >
-            View Analysis Engines
-          </button>
-          <button 
-            className={`${styles.sectionButton} ${activeSection === 'history' ? styles.active : ''}`}
-            onClick={() => setActiveSection('history')}
-          >
-            Analysis History
-          </button>
-        </div>
 
         {message.text && (
           <div className={`${styles.message} ${styles[message.type]}`}>

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from typing import Dict, Any
 import tempfile
 import os
+import json
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -145,7 +146,6 @@ async def get_analysis_result(
                 manifest_path = scan_dir / "manifest.json"
                 if manifest_path.exists():
                     try:
-                        import json
                         with open(manifest_path, 'r') as f:
                             manifest_data = json.load(f)
                         
@@ -331,6 +331,10 @@ async def download_report(
         basicstatic_path = analysis_service.basicstatic_path
         advancestatic_path = analysis_service.advancestatic_path
         
+        # Get project root for AI scans
+        project_root = Path(__file__).parent.parent.parent.parent
+        ai_scans_path = project_root / "ai_based_malware_detection"
+        
         # Map format to file extension and media type
         format_map = {
             "html": ("report.html", "text/html", "html"),
@@ -347,9 +351,9 @@ async def download_report(
         
         filename, media_type, file_ext = format_map[format]
         
-        # Try to find the report in both basic and advanced static directories
+        # Try to find the report in basic, advanced static, and AI directories
         report_path = None
-        for base_path in [basicstatic_path, advancestatic_path]:
+        for base_path in [basicstatic_path, advancestatic_path, ai_scans_path]:
             potential_path = base_path / "scanned_results" / scan_id / filename
             if potential_path.exists():
                 report_path = potential_path
@@ -377,27 +381,32 @@ async def download_report(
 
 @router.get("/history")
 async def get_user_analysis_history(
-    current_user: UserOut = Depends(get_current_user)
+    current_user: UserOut = Depends(get_current_user),
+    db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """
-    Get analysis history for the current user
+    Get analysis history for the current user (includes both static and AI analyses)
     
     Args:
         current_user: Current authenticated user
+        db: Database session
         
     Returns:
         List of analysis records for the current user
     """
     try:
+        logger.info(f"Fetching analysis history for user {current_user.id} ({current_user.username})")
+        
         # Get the project root directory
         project_root = Path(__file__).parent.parent.parent.parent
         
         analysis_history = []
         
-        # Scan both basic and advanced static directories for analysis results
+        # 1. Get static analysis results (Basic and Advanced)
         for engine_name, engine_path in [
             ("Basic Static", project_root / "matrisksBasicStatic"),
-            ("Advanced Static", project_root / "matrisksAdvanceStatic")
+            ("Advanced Static", project_root / "matrisksAdvanceStatic"),
+            ("AI Malware Detection", project_root / "ai_based_malware_detection")
         ]:
             results_dir = engine_path / "scanned_results"
             if results_dir.exists():
@@ -408,20 +417,25 @@ async def get_user_analysis_history(
                         manifest_data = {}
                         if manifest_path.exists():
                             try:
-                                import json
                                 with open(manifest_path, 'r') as f:
                                     manifest_data = json.load(f)
-                            except:
-                                pass
+                            except Exception as e:
+                                logger.warning(f"Failed to read manifest for {scan_dir.name}: {e}")
+                                continue
                         
                         # Check if this scan belongs to the current user
                         user_id = manifest_data.get("user_id")
                         if user_id is None:
                             # Skip scans without user tracking (older scans)
+                            logger.debug(f"Skipping {scan_dir.name} - no user_id in manifest")
                             continue
+                        
+                        # Filter scans by current user
                         if str(user_id) != str(current_user.id):
                             # Skip scans not belonging to current user
+                            logger.debug(f"Skipping {scan_dir.name} - belongs to user {user_id}, not {current_user.id}")
                             continue
+                        logger.debug(f"Including {scan_dir.name} - user {user_id} (current user: {current_user.id})")
                         
                         # Get file info
                         apk_name = manifest_data.get("apk_name", "Unknown APK")
@@ -433,7 +447,8 @@ async def get_user_analysis_history(
                             if (scan_dir / f"report.{format_ext}").exists():
                                 available_formats.append(format_ext)
                         
-                        analysis_history.append({
+                        # Build entry data
+                        entry = {
                             "id": scan_dir.name,
                             "apk_name": apk_name,
                             "file_size": file_size,
@@ -444,10 +459,46 @@ async def get_user_analysis_history(
                             "available_formats": available_formats,
                             "scan_path": str(scan_dir),
                             "user_id": user_id
-                        })
+                        }
+                        
+                        # Add AI-specific fields if this is an AI scan
+                        if engine_name == "AI Malware Detection":
+                            entry["prediction"] = manifest_data.get("prediction", "unknown")
+                            entry["confidence"] = manifest_data.get("confidence", 0.0)
+                            entry["risk_level"] = manifest_data.get("risk_level", "unknown")
+                        
+                        analysis_history.append(entry)
+        
+        # 2. Also get AI malware detection results from database (for backward compatibility)
+        # This catches any AI scans that might not have scan directories yet
+        from app.services.ai_analysis import ai_analysis_service
+        ai_history = ai_analysis_service.get_user_analysis_history(current_user.id, limit=100)
+        
+        # Add AI results that don't already have a scan directory
+        existing_scan_ids = {entry["id"] for entry in analysis_history}
+        
+        for ai_record in ai_history:
+            scan_id = f"SCAN-{datetime.fromisoformat(ai_record['timestamp']).strftime('%Y%m%d-%H%M%S')}-{ai_record['id']}"
+            
+            # Only add if not already in the list
+            if scan_id not in existing_scan_ids:
+                analysis_history.append({
+                    "id": scan_id,
+                    "apk_name": ai_record['apk_name'],
+                    "file_size": ai_record.get('file_size', 0),
+                    "analysis_type": "AI Malware Detection",
+                    "timestamp": ai_record['timestamp'],
+                    "status": "completed" if ai_record['prediction'] != 'error' else 'error',
+                    "available_formats": ["json"],  # Database records have JSON data
+                    "prediction": ai_record['prediction'],
+                    "confidence": ai_record['confidence'],
+                    "user_id": current_user.id
+                })
         
         # Sort by timestamp (newest first)
         analysis_history.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        logger.info(f"Returning {len(analysis_history)} analysis records for user {current_user.id}")
         
         return {
             "success": True,

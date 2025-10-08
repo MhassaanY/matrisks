@@ -487,9 +487,8 @@ class AnalysisService:
             
             # Format result to match expected structure
             if ai_result.get("success", False):
-                # Generate unique analysis ID
-                import uuid
-                analysis_id = str(uuid.uuid4())
+                # Use scan_id from AI result if available, otherwise generate UUID
+                analysis_id = ai_result.get("scan_id", str(uuid.uuid4()))
                 
                 return {
                     "success": True,
@@ -507,7 +506,9 @@ class AnalysisService:
                         "active_features": ai_result.get("active_features", 0),
                         "total_features": ai_result.get("total_features", 215),
                         "feature_analysis": ai_result.get("feature_analysis", {}),
-                        "model_info": ai_result.get("model_info", {})
+                        "model_info": ai_result.get("model_info", {}),
+                        "analysis_id": ai_result.get("analysis_id"),  # Database ID
+                        "scan_id": analysis_id  # File system scan ID
                     },
                     "report": {
                         "ai_analysis": ai_result,
@@ -515,7 +516,8 @@ class AnalysisService:
                     },
                     "report_content": {
                         "ai_report": self._format_ai_report(ai_result)
-                    }
+                    },
+                    "report_path": analysis_id  # Use scan_id as report_path for downloads
                 }
             else:
                 return {

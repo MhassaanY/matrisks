@@ -241,19 +241,23 @@ export async function getAnalysisResult(analysisId) {
 export async function getAnalysisHistory() {
   try {
     const response = await apiRequest('/analysis/history');
+    console.log('[getAnalysisHistory] Raw response:', response);
+    
     // Handle the new response format with success/data structure
     if (response && response.success && Array.isArray(response.data)) {
+      console.log('[getAnalysisHistory] Returning data array:', response.data.length, 'items');
       return response.data;
     }
     // Fallback for direct array response
     if (Array.isArray(response)) {
+      console.log('[getAnalysisHistory] Returning direct array:', response.length, 'items');
       return response;
     }
     // If we get here, the response format is unexpected
-    console.warn('Unexpected response format for analysis history');
+    console.warn('[getAnalysisHistory] Unexpected response format:', response);
     throw new Error('Unexpected response format');
   } catch (error) {
-    console.error('Error fetching analysis history:', error);
+    console.error('[getAnalysisHistory] Error fetching analysis history:', error);
     // Re-throw to be handled by the caller
     throw error;
   }
@@ -376,15 +380,20 @@ export async function getAnalysisEngines() {
 export async function getAdminAnalysisHistory() {
   try {
     const response = await apiRequest('/admin/analysis-history');
+    console.log('[getAdminAnalysisHistory] Raw response:', response);
+    
     if (Array.isArray(response)) {
+      console.log('[getAdminAnalysisHistory] Returning array:', response.length, 'items');
       return response;
     }
     if (response && Array.isArray(response.data)) {
+      console.log('[getAdminAnalysisHistory] Returning data array:', response.data.length, 'items');
       return response.data;
     }
+    console.warn('[getAdminAnalysisHistory] Unexpected response format:', response);
     throw new Error('Unexpected response format');
   } catch (error) {
-    console.error('Error fetching analysis history:', error);
+    console.error('[getAdminAnalysisHistory] Error fetching analysis history:', error);
     throw error;
   }
 }
