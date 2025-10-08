@@ -21,6 +21,8 @@ def json_serial(obj):
 class Writer:
     def __init__(self, staging_dir):
         self.staging_dir = staging_dir
+        self.decompiled_source_path = os.path.join(staging_dir, "decompiled")
+        self.source_code_index = {}
         self.__package_information = {}
         self.__cache_output_detail_stream = []
         self.__output_dict_vector_result_information = {}  # Store the result information (key: tag ; value: information_for_each_vector)
@@ -66,23 +68,28 @@ class Writer:
             self.write("=> %s ---> %s" % (source_class.name, dest_class_name), indention_space_count)
 
     def show_Path(self, path, indention_space_count=0):
-        
+        # Get actual method objects if these are MethodAnalysis objects
+        src_method = path['src_method'].get_method() if hasattr(path['src_method'], 'get_method') else path['src_method']
+        dst_method = path['dst_method'].get_method() if hasattr(path['dst_method'], 'get_method') else path['dst_method']
 
         self.write("=> %s->%s%s (0x%x) ---> %s->%s%s" % (
-            path['src_method'].get_class_name(),
-            path['src_method'].get_name(),
-            path['src_method'].get_descriptor(),
+            src_method.get_class_name(),
+            src_method.get_name(),
+            src_method.get_descriptor(),
             path['idx'],
-            path['dst_method'].get_class_name(),
-            path['dst_method'].get_name(),
-            path['dst_method'].get_descriptor()),
+            dst_method.get_class_name(),
+            dst_method.get_name(),
+            dst_method.get_descriptor()),
                    indention_space_count)
 
     def show_Path_only_source(self, vm, path, indention_space_count=0):
+        # Get actual method object if this is a MethodAnalysis object
+        src_method = path['src_method'].get_method() if hasattr(path['src_method'], 'get_method') else path['src_method']
+        
         self.write("=> %s->%s%s" % (
-            path['src_method'].get_class_name(),
-            path['src_method'].get_name(),
-            path['src_method'].get_descriptor()), indention_space_count)
+            src_method.get_class_name(),
+            src_method.get_name(),
+            src_method.get_descriptor()), indention_space_count)
 
     def show_Paths(self, paths, indention_space_count=0):
         
@@ -90,7 +97,7 @@ class Writer:
             self.show_Path(path, indention_space_count)
 
 
-    def startWriter(self, tag, level, summary, title_msg, special_tag=None, cve_number="", vector_name=None, suggestion=None, confidence=None, risk=None):
+    def startWriter(self, tag, level, summary, title_msg, special_tag=None, cve_number="", vector_name=None, suggestion=None, confidence=None, risk=None, cwe=None, owasp_mobile=None):
         
         self.completeWriter()
         self.__output_current_tag = tag
@@ -113,6 +120,45 @@ class Writer:
             dict_tmp_information["confidence"] = confidence
         if risk:
             dict_tmp_information["risk"] = risk
+        if cwe:
+            dict_tmp_information["cwe"] = cwe
+        if owasp_mobile:
+            dict_tmp_information["owasp_mobile"] = owasp_mobile
+
+        if special_tag:
+            assert isinstance(special_tag, list), "Tag [" + tag + "] : special_tag should be list"
+            dict_tmp_information["special_tag"] = special_tag  # Notice: the type of "special_tag" is "list"
+        if cve_number:
+            assert isinstance(cve_number, str), "Tag [" + tag + "] : special_tag should be string"
+            dict_tmp_information["cve_number"] = cve_number
+
+        self.__output_dict_vector_result_information[tag] = dict_tmp_information
+        
+        self.completeWriter()
+        self.__output_current_tag = tag
+
+        assert ((tag is not None) and (level is not None) and (summary is not None) and (
+                title_msg is not None)), "\"tag\", \"level\", \"summary\", \"title_msg\" should all have it's value."
+
+        if tag not in self.__output_dict_vector_result_information:
+            self.__output_dict_vector_result_information[tag] = []
+
+        dict_tmp_information = dict()
+        dict_tmp_information["level"] = level
+        dict_tmp_information["title"] = title_msg.rstrip('\n')
+        dict_tmp_information["summary"] = summary.rstrip('\n')
+        dict_tmp_information["count"] = 0
+        dict_tmp_information["vector_name"] = vector_name
+        if suggestion:
+            dict_tmp_information["suggestion"] = suggestion
+        if confidence:
+            dict_tmp_information["confidence"] = confidence
+        if risk:
+            dict_tmp_information["risk"] = risk
+        if cwe:
+            dict_tmp_information["cwe"] = cwe
+        if owasp_mobile:
+            dict_tmp_information["owasp_mobile"] = owasp_mobile
 
         if special_tag:
             assert isinstance(special_tag, list), "Tag [" + tag + "] : special_tag should be list"
@@ -268,9 +314,10 @@ class Writer:
                     return True
         return False
 
+    @staticmethod
     def __sort_by_level(key, value):
         try:
-            level = value[1]["level"]
+            level = value["level"]
 
             if level == LEVEL_CRITICAL:
                 return 5
@@ -329,13 +376,37 @@ class Writer:
         Saves the complete analysis result as a JSON file.
         """
         self.completeWriter()  # Ensure all cached data is written to the main dictionary
+        
+        findings = []
+        for tag, finding_data in self.__output_dict_vector_result_information.items():
+            finding = {
+                "id": tag,
+                "title": finding_data.get("title", "N/A"),
+                "summary": finding_data.get("summary", "N/A"),
+                "description": finding_data.get("description", "N/A"),
+                "severity": finding_data.get("level", "N/A"),
+                "confidence": finding_data.get("confidence", "N/A"),
+                "risk": finding_data.get("risk", "N/A"),
+                "suggestion": finding_data.get("suggestion", "N/A"),
+                "vector": finding_data.get("vector_name", "N/A"),
+                "cwe": finding_data.get("cwe", "N/A"),
+                "owasp_mobile": finding_data.get("owasp_mobile", "N/A"),
+                "details": finding_data.get("vector_details", "N/A"),
+            }
+            findings.append(finding)
+
         final_report = {
             "metadata": self.__package_information,
-            "findings": self.__output_dict_vector_result_information
+            "findings": findings
         }
         try:
+            print(f"Saving JSON report to: {os.path.abspath(output_path)}")
             with open(output_path, 'w') as f:
-                json.dump(final_report, f, indent=2, default=json_serial)
+                print("Writing JSON data...")
+                try:
+                    json.dump(final_report, f, indent=2, default=json_serial)
+                except Exception as e:
+                    print(f"Error writing JSON data: {e}")
             print(f"<<< JSON report is generated: {os.path.abspath(output_path)} >>>")
         except IOError as err:
             print(f"[Error on writing JSON output file to disk: {err}]")
@@ -384,45 +455,42 @@ class Writer:
         self.__file_io_result_output_list.append(line)
         print(line)
 
-    def load_to_output_list(self, args):
-        
+    def _sort_findings(self, findings):
+        return sorted(findings.items(), key=lambda item: self.__sort_by_level(item[0], item[1]), reverse=True)
 
-        self.__file_io_result_output_list[:] = []  # clear the list
-
+    def _format_finding(self, tag, finding, args):
+        lines = []
         wrapperTitle = TextWrapper(initial_indent=' ' * 11, subsequent_indent=' ' * 11,
                                    width=args.line_max_output_characters)
         wrapperDetail = TextWrapper(initial_indent=' ' * 15, subsequent_indent=' ' * 20,
                                     width=args.line_max_output_characters)
 
-        sorted_output_dict_result_information = collections.OrderedDict(
-            sorted(self.__output_dict_vector_result_information.items()))  # Sort the dictionary by key
+        category = ""
+        if self.is_dict_information_has_special_tag(finding):
+            category = " <" + "><".join(finding["special_tag"]) + ">"
 
-        for tag, dict_information in sorted(list(sorted_output_dict_result_information.items()),
-                                            key=self.__sort_by_level,
-                                            reverse=True):  # Output the sorted dictionary by level
-            extra_field = ""
-            if self.is_dict_information_has_special_tag(dict_information):
-                for i in dict_information["special_tag"]:
-                    extra_field += ("<" + i + ">")
-            if self.is_dict_information_has_cve_number(dict_information):
-                extra_field += ("<#" + dict_information["cve_number"] + "#>")
+        if args.show_vector_id:
+            lines.append("[%s]%s %s (Vector ID: %s, Vector: %s):" % (
+                finding["level"], category, finding["summary"], tag, finding["vector_name"]))
+        else:
+            lines.append("[%s]%s %s (Vector: %s):" % (finding["level"], category, finding["summary"], finding["vector_name"]))
 
-            category = ""
-            if self.is_dict_information_has_special_tag(dict_information):
-                category = " <" + "><".join(dict_information["special_tag"]) + ">"
+        for line in finding["title"].split('\n'):
+            lines.append(wrapperTitle.fill(line))
 
-            if args.show_vector_id:
-                self.output("[%s]%s %s (Vector ID: %s, Vector: %s):" % (
-                    dict_information["level"], category, dict_information["summary"], tag, dict_information["vector_name"]))
-            else:
-                self.output("[%s]%s %s (Vector: %s):" % (dict_information["level"], category, dict_information["summary"], dict_information["vector_name"]))
+        if "vector_details" in finding:
+            for line in finding["vector_details"].split('\n'):
+                lines.append(wrapperDetail.fill(line))
+        
+        return lines
 
-            for line in dict_information["title"].split('\n'):
-                self.output(wrapperTitle.fill(line))
+    def load_to_output_list(self, args):
+        self.__file_io_result_output_list[:] = []  # clear the list
 
-            if "vector_details" in dict_information:
-                for line in dict_information["vector_details"].split('\n'):
-                    self.output(wrapperDetail.fill(line))
+        sorted_findings = self._sort_findings(self.__output_dict_vector_result_information)
+
+        for tag, finding in sorted_findings:
+            self.__file_io_result_output_list.extend(self._format_finding(tag, finding, args))
 
         self.output("------------------------------------------------------------")
 
@@ -465,3 +533,59 @@ class Writer:
                     "<<< Analysis result has stored into database " + analysis_tips_output + " >>>")
             else:
                 self.output("<<< Analysis result has stored into database " + analysis_tips_output + " >>>")
+        self.__file_io_result_output_list[:] = []  # clear the list
+
+        sorted_findings = self._sort_findings(self.__output_dict_vector_result_information)
+
+        for tag, finding in sorted_findings:
+            self.__file_io_result_output_list.extend(self._format_finding(tag, finding, args))
+
+        self.output("------------------------------------------------------------")
+
+        stopwatch_total_elapsed_time = self.getInf("time_total")
+        stopwatch_analyze_time = self.getInf("time_analyze")
+        stopwatch_hacker_debuggable = self.getInf("time_hacker_debuggable_check")
+        if stopwatch_total_elapsed_time and stopwatch_analyze_time:
+
+            if (REPORT_OUTPUT == "file"):
+                self.output_and_force_print_console(
+                    "Matrisks analyzing time: " + str(stopwatch_analyze_time) + " secs")
+                self.output_and_force_print_console(
+                    "HACKER_DEBUGGABLE_CHECK elapsed time: " + str(stopwatch_hacker_debuggable) + " secs")
+
+                self.output_and_force_print_console(
+                    "Total elapsed time: " + str(stopwatch_total_elapsed_time) + " secs")
+            else:
+                self.output("Matrisks analyzing time: " + str(stopwatch_analyze_time) + " secs")
+                self.output(
+                    "HACKER_DEBUGGABLE_CHECK elapsed time: " + str(stopwatch_hacker_debuggable) + " secs")
+                self.output("Total elapsed time: " + str(stopwatch_total_elapsed_time) + " secs")
+
+        if args.store_analysis_result_in_db:
+
+            analysis_tips_output = "("
+
+            if args.analyze_engine_build:
+                analysis_tips_output += "analyze_engine_build: " + str(args.analyze_engine_build) + ", "
+
+            if args.analyze_tag:
+                analysis_tips_output += "analyze_tag: " + str(args.analyze_tag) + ", "
+
+            if analysis_tips_output.endswith(", "):
+                analysis_tips_output = analysis_tips_output[:-2]
+
+            analysis_tips_output += ")"
+
+            if (REPORT_OUTPUT == "file"):
+                self.output_and_force_print_console(
+                    "<<< Analysis result has stored into database " + analysis_tips_output + " >>>")
+            else:
+                self.output("<<< Analysis result has stored into database " + analysis_tips_output + " >>>")
+
+    def getInfDict(self):
+        """Get all package information as dictionary"""
+        return self.__package_information.copy()
+    
+    def get_vector_results(self):
+        """Get all vector results as dictionary"""
+        return self.__output_dict_vector_result_information.copy()

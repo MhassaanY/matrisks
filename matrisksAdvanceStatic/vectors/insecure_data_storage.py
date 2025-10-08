@@ -1,90 +1,63 @@
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
-import re
 
-class Vector(VectorBase):
-    description = "Checks for insecure data storage vulnerabilities, such as world-readable/writable files, external storage usage, and logging of sensitive data."
+class Vector(Vector):
+    description = "Checks for insecure data storage vulnerabilities."
     tags = ["INSECURE_DATA_STORAGE"]
 
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
+
     def analyze(self) -> None:
+        if not self.index:
+            return
         self.check_insecure_file_permissions()
         self.check_external_storage()
-        self.check_logging_sensitive_data()
 
     def check_insecure_file_permissions(self):
-        found_vulnerable_methods = []
+        """Finds files and databases created with world-readable or world-writable permissions."""
+        vulnerable_calls = []
+        methods_to_check = [
+            "Landroid/content/ContextWrapper;->openFileOutput(Ljava/lang/String; I)Ljava/io/FileOutputStream;",
+            "Landroid/content/ContextWrapper;->getSharedPreferences(Ljava/lang/String; I)Landroid/content/SharedPreferences;",
+            "Landroid/content/ContextWrapper;->getDir(Ljava/lang/String; I)Ljava/io/File;",
+            "Landroid/database/sqlite/SQLiteDatabase;->openOrCreateDatabase(Ljava/lang/String; Landroid/database/sqlite/SQLiteDatabase$CursorFactory; I)Landroid/database/sqlite/SQLiteDatabase;"
+        ]
 
-        # Regex to find openFileOutput or getSharedPreferences with MODE_WORLD_READABLE or MODE_WORLD_WRITEABLE
-        regex = r"(openFileOutput|getSharedPreferences)\s*\(\s*.*,\s*(1|2|MODE_WORLD_READABLE|MODE_WORLD_WRITEABLE)\s*\)"
+        for caller, callees in self.index["call_graph"].items():
+            for callee in callees:
+                if callee in methods_to_check:
+                    vulnerable_calls.append((caller, callee))
 
-        for method in self.analysis.get_methods():
-            if method.is_external():
-                continue
-
-            try:
-                source_code = method.get_source()
-                if source_code:
-                    matches = re.findall(regex, source_code, re.IGNORECASE)
-                    if matches:
-                        found_vulnerable_methods.append(method)
-            except Exception as e:
-                # Sometimes decompilation fails.
-                pass
-
-
-        if found_vulnerable_methods:
+        if vulnerable_calls:
             self.writer.startWriter("INSECURE_FILE_PERMISSIONS", LEVEL_CRITICAL, "Insecure File Permissions",
-                                    "The application creates files or shared preferences with world-readable or world-writable permissions.",
-                                    ["Storage"], vector_name=self.vector_name)
-            for method in found_vulnerable_methods:
-                self.writer.write(f"Vulnerable method: {method.get_class_name()}->{method.get_name()}{method.get_descriptor()}")
+                                    "The application creates files, directories, or databases with world-readable or world-writable permissions. This can allow other applications on the device to access or modify their data.",
+                                    ["Storage"], vector_name=self.vector_name,
+                                    suggestion="Use MODE_PRIVATE for all files, shared preferences, and databases that should only be accessible to your application.",
+                                    confidence=5, risk="High")
+            self.writer.write("Insecure file permissions set in:")
+            for caller, callee in vulnerable_calls:
+                self.writer.write(f"    {caller} -> {callee}")
 
     def check_external_storage(self):
-        found_vulnerable_methods = []
+        """Finds usage of external storage, which is globally accessible."""
+        vulnerable_calls = []
+        methods_to_check = [
+            "Landroid/os/Environment;->getExternalStorageDirectory()Ljava/io/File;",
+            "Landroid/os/Environment;->getExternalStoragePublicDirectory(Ljava/lang/String;)Ljava/io/File;"
+        ]
 
-        regex = r"Environment\.getExternalStorageDirectory\s*\(\s*\)"
+        for caller, callees in self.index["call_graph"].items():
+            for callee in callees:
+                if callee in methods_to_check:
+                    vulnerable_calls.append((caller, callee))
 
-        for method in self.analysis.get_methods():
-            if method.is_external():
-                continue
-
-            try:
-                source_code = method.get_source()
-                if source_code:
-                    matches = re.findall(regex, source_code)
-                    if matches:
-                        found_vulnerable_methods.append(method)
-            except Exception as e:
-                pass
-
-        if found_vulnerable_methods:
+        if vulnerable_calls:
             self.writer.startWriter("EXTERNAL_STORAGE_USAGE", LEVEL_WARNING, "External Storage Usage",
-                                    "The application uses external storage, which is accessible to other applications. Sensitive data should not be stored on external storage.",
-                                    ["Storage"], vector_name=self.vector_name)
-            for method in found_vulnerable_methods:
-                self.writer.write(f"Method using external storage: {method.get_class_name()}->{method.get_name()}{method.get_descriptor()}")
-
-    def check_logging_sensitive_data(self):
-        found_vulnerable_methods = []
-
-        regex = r"Log\.(d|i|w|e|v)\s*\(\s*.*(password|token|key|secret).*\s*\)"
-
-        for method in self.analysis.get_methods():
-            if method.is_external():
-                continue
-
-            try:
-                source_code = method.get_source()
-                if source_code:
-                    matches = re.findall(regex, source_code, re.IGNORECASE)
-                    if matches:
-                        found_vulnerable_methods.append(method)
-            except Exception as e:
-                pass
-
-        if found_vulnerable_methods:
-            self.writer.startWriter("LOGGING_SENSITIVE_DATA", LEVEL_WARNING, "Logging of Sensitive Data",
-                                    "The application logs sensitive data, which can be accessed by other applications or through logcat.",
-                                    ["Storage"], vector_name=self.vector_name)
-            for method in found_vulnerable_methods:
-                self.writer.write(f"Method logging sensitive data: {method.get_class_name()}->{method.get_name()}{method.get_descriptor()}")
+                                    "The application reads or writes to external storage. Data stored on external storage is accessible to any application with the READ/WRITE_EXTERNAL_STORAGE permission and can be read by a user with access to the device.",
+                                    ["Storage"], vector_name=self.vector_name,
+                                    suggestion="Do not store sensitive data on external storage. Use the application's private internal storage instead.",
+                                    confidence=5, risk="Medium")
+            self.writer.write("External storage used in:")
+            for caller, callee in vulnerable_calls:
+                self.writer.write(f"    {caller} -> {callee}")

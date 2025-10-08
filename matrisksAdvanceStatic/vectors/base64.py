@@ -1,119 +1,95 @@
-import constants
-from vector_base import VectorBase
-from constants import *
-from engines import *
-import utils
 import base64
+import re
+import staticDVM
+from vector_base import Vector
+from constants import *
 
-list_base64_excluded_original_string = ["endsWith", "allCells", "fillList", "endNanos", "cityList", "cloudid=",
-                                        "Liouciou"]  # exclusion list
-
-class Vector(VectorBase):
-    description = "Checks if there are any Base64 encoded strings present and decodes them"
-    tags = ["HACKER_BASE64_STRING_DECODE", "SSL_Security"]
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
+    description = "Checks for Base64 encoded strings and insecure HTTP URLs."
+    tags = ["BASE64_DECODING", "INSECURE_HTTP_URL"]
 
     def analyze(self) -> None:
-        strings_analysis = self.analysis.get_strings_analysis()
+        self.check_base64_decoding()
+        self.check_for_http_urls()
 
-        # Check all strings that seem to be base64 encoded
-
-        regex_excluded_class_names = re.compile(constants.STR_REGEXP_TYPE_EXCLUDE_CLASSES)
+    def check_base64_decoding(self) -> None:
+        """Finds hardcoded strings that are passed to Base64.decode()."""
         found_strings = []
+        # Find all variants of Base64.decode
+        decode_paths = self.analysis.find_methods(
+            classname="Landroid/util/Base64;", 
+            methodname="decode"
+        )
 
-        for string, string_analysis in strings_analysis.items():
-            if utils.is_base64(string) and len(string) >= 3 and string not in list_base64_excluded_original_string:
+        for trace in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(decode_paths):
+            # The first parameter (index 1) is the one to be decoded (either String or byte[]).
+            # We are interested when it's a hardcoded string.
+            encoded_string = trace.getResult()[1]
+            if encoded_string and isinstance(encoded_string, str):
                 try:
-                    decoded_string = base64.b64decode(string).decode()
-                    if utils.is_success_base64_decoded_string(decoded_string) and len(decoded_string) > 3:
-                        if not all([regex_excluded_class_names.match(xref_class.name)
-                                    for xref_class, xref_method in string_analysis.get_xref_from()]):
-                            found_strings.append((string, decoded_string, string_analysis))
-                except:
-                    pass
+                    decoded_bytes = base64.b64decode(encoded_string)
+                    # Try to decode as UTF-8, but don't fail if it's binary data
+                    decoded_string = decoded_bytes.decode('utf-8', errors='replace')
+                    found_strings.append((encoded_string, decoded_string, trace.getPath()))
+                except (ValueError, TypeError):
+                    # Not a valid Base64 string, ignore.
+                    continue
 
         if found_strings:
-            self.writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_WARNING,
-                                    "Base64 Encoded Strings Found",
-                                    "Found Base64 encoded strings. Base64 is not an encryption algorithm and should not be used to protect sensitive data.",
-                                    ["Hacker", "Cryptography"], vector_name=self.vector_name,
-                                    suggestion="Do not use Base64 to obscure secrets. If the data is sensitive, encrypt it using a strong algorithm like AES-GCM.",
-                                    confidence=3, risk="Medium")
+            self.writer.startWriter("BASE64_DECODING", LEVEL_NOTICE, "Hardcoded Base64 Encoded Strings Found",
+                                    "The application decodes hardcoded Base64 strings. This is often used to obscure data, but it is not a form of encryption. Review the decoded content to ensure no sensitive data is exposed.",
+                                    ["Cryptography"], vector_name=self.vector_name,
+                                    suggestion="Do not use Base64 to obscure secrets. If the data is sensitive, encrypt it using a strong algorithm like AES-GCM and store keys securely.",
+                                    confidence=4, risk="Medium")
+            for original, decoded, path in found_strings:
+                self.writer.write(f'Decoded string: "{decoded[:200]}' + ("..." if len(decoded) > 200 else "") + '"')
+                self.writer.write(f'  - Original encoded string: "{original}"')
+                self.writer.write("  - Location:")
+                self.writer.show_Path(path, indention_space_count=4)
 
-            base64_decoded_urls = []
-            for original_string, decoded_string, string_analysis in found_strings:
-                self.writer.write(decoded_string)
-                self.writer.write("    ->Original Encoding String: " + original_string)
-                self._print_xrefs(string_analysis)
+    def check_for_http_urls(self) -> None:
+        """Finds hardcoded http:// URLs in the code."""
+        strings_analysis = self.analysis.get_strings_analysis()
+        regex_excluded_class_names = re.compile(STR_REGEXP_TYPE_EXCLUDE_CLASSES)
+        
+        exception_url_string = {
+            "http://example.com", "http://example.com/",
+            "http://www.example.com", "http://www.example.com/",
+            "http://www.google-analytics.com/collect", "http://www.google-analytics.com",
+            "http://hostname/?", "http://hostname/",
+        }
+        
+        url_prefixes_to_ignore = (
+            "http://schemas.android.com/", "http://www.w3.org/",
+            "http://apache.org/", "http://xml.org/",
+            "http://localhost/", "http://java.sun.com/"
+        )
+        
+        url_suffixes_to_ignore = (
+            "/namespace", "-dtd", ".dtd", "-handler", "-instance"
+        )
 
-                if decoded_string.startswith("http://"):
-                    base64_decoded_urls.append((decoded_string, original_string))
-
-            if base64_decoded_urls:
-                self.writer.startWriter("HACKER_BASE64_URL_DECODE", LEVEL_CRITICAL, "Base64 Encoded HTTP URLs",
-                                        "Found Base64 encoded HTTP URLs. Transmitting data over unencrypted channels is insecure.",
-                                        ["SSL_Security", "Hacker"], vector_name=self.vector_name,
-                                        suggestion="Always use HTTPS for network communication. The decoded URL should use the https:// scheme.",
-                                        confidence=5, risk="High")
-
-                for original_string, decoded_string, string_analysis in found_strings:
-                    self.writer.write(decoded_string)
-                    self.writer.write("    ->Original Encoding String: " + original_string)
-                    self._print_xrefs(string_analysis)
-
-        else:
-            self.writer.startWriter("HACKER_BASE64_STRING_DECODE", LEVEL_INFO, "Base64 String Encryption",
-                                    "No encoded Base64 String or Urls found.", ["Hacker"], vector_name=self.vector_name)
-
-        # Check all URL like strings without SSL
-
-        unfiltered_urls = []
-        for string in strings_analysis:
-            if re.match('http://(.+)', string):
-                unfiltered_urls.append(string)
-
-        exception_url_string = ["http://example.com",
-                                "http://example.com/",
-                                "http://www.example.com",
-                                "http://www.example.com/",
-                                "http://www.google-analytics.com/collect",
-                                "http://www.google-analytics.com",
-                                "http://hostname/?",
-                                "http://hostname/"]
-
-        unfiltered_urls = sorted(set(unfiltered_urls))
         filtered_urls = []
+        for url, s_analysis in strings_analysis.items():
+            if not url.startswith("http://"):
+                continue
 
-        if unfiltered_urls:
-            for url in unfiltered_urls:
-                if (url not in exception_url_string) and (not url.startswith("http://schemas.android.com/")) and \
-                        (not url.startswith("http://www.w3.org/")) and \
-                        (not url.startswith("http://apache.org/")) and \
-                        (not url.startswith("http://xml.org/")) and \
-                        (not url.startswith("http://localhost/")) and \
-                        (not url.startswith("http://java.sun.com/")) and \
-                        (not url.endswith("/namespace")) and \
-                        (not url.endswith("-dtd")) and \
-                        (not url.endswith(".dtd")) and \
-                        (not url.endswith("-handler")) and \
-                        (not url.endswith("-instance")):
-                    string_analysis = strings_analysis[url]
-                    # only append url if it is not in the exclusion list
-                    if not all([regex_excluded_class_names.match(xref_class.name)
-                                for xref_class, xref_method in string_analysis.get_xref_from()]):
-                        filtered_urls.append(url)
+            if url in exception_url_string or url.startswith(url_prefixes_to_ignore) or url.endswith(url_suffixes_to_ignore):
+                continue
+
+            # only append url if it is not in the exclusion list
+            if not any(regex_excluded_class_names.match(xref_class.name) for xref_class, _ in s_analysis.get_xref_from()):
+                filtered_urls.append((url, s_analysis))
 
         if filtered_urls:
-            self.writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_CRITICAL, "Insecure HTTP URLs Found",
+            self.writer.startWriter("INSECURE_HTTP_URL", LEVEL_CRITICAL, "Insecure HTTP URLs Found",
                                     "The application connects to URLs using unencrypted HTTP. This can expose data to network eavesdropping.",
                                     ["SSL_Security"], vector_name=self.vector_name,
                                     suggestion="All network communication should use HTTPS to protect data in transit.",
                                     confidence=5, risk="High")
 
-            for url in filtered_urls:
+            for url, s_analysis in filtered_urls:
                 self.writer.write(url)
-                self._print_xrefs(strings_analysis[url])
-        else:
-            self.writer.startWriter("SSL_URLS_NOT_IN_HTTPS", LEVEL_INFO, "SSL Connection Checking",
-                                    "Did not discover urls that are not under SSL (Notice: if you encrypt the url "
-                                    "string, we can not discover that).",
-                                    ["SSL_Security"], vector_name=self.vector_name)
+                self._print_xrefs(s_analysis, indention_space_count=2)

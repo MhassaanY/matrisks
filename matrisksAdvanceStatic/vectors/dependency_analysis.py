@@ -1,19 +1,15 @@
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
-import requests
-import json
 import os
+import json
 import re
+import requests
+from cache_manager import CacheManager
 
-class Vector(VectorBase):
-    description = "Identifies third-party libraries and checks for known vulnerabilities."
-    tags = ["DEPENDENCY_ANALYSIS"]
-
+class Vector(Vector):
     OSV_API_URL = "https://api.osv.dev/v1/query"
-    library_db = {}
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
         self.load_library_db()
 
     def load_library_db(self):
@@ -73,19 +69,27 @@ class Vector(VectorBase):
 
     def check_for_vulnerabilities(self, libraries: dict) -> dict:
         vulnerabilities = {}
+        cache_manager = CacheManager(os.path.join(os.path.expanduser("~"), ".matrisks_cache"))
+
         for prefix, lib_data in libraries.items():
+            lib_identifier = f"{lib_data['osv_package']['name']}:{lib_data['version'] or 'Unknown'}"
+            cached_result = cache_manager.get(lib_identifier)
+
+            if cached_result:
+                vulnerabilities[lib_identifier] = cached_result
+                continue
+
             query = {"package": lib_data['osv_package']}
             if lib_data['version']:
                 query["version"] = lib_data['version']
             
-            lib_identifier = f"{lib_data['osv_package']['name']}:{lib_data['version'] or 'Unknown'}"
-
             try:
                 response = requests.post(self.OSV_API_URL, data=json.dumps(query), timeout=15)
                 if response.status_code == 200:
                     result = response.json()
                     if result and 'vulns' in result:
                         vulnerabilities[lib_identifier] = result['vulns']
+                        cache_manager.set(lib_identifier, result['vulns'])
             except requests.RequestException:
                 pass
         return vulnerabilities

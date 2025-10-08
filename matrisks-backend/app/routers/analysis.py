@@ -395,6 +395,7 @@ async def get_user_analysis_history(
         List of analysis records for the current user
     """
     try:
+        print(f"[HISTORY] Fetching analysis history for user {current_user.id} ({current_user.username})")
         logger.info(f"Fetching analysis history for user {current_user.id} ({current_user.username})")
         
         # Get the project root directory
@@ -498,6 +499,7 @@ async def get_user_analysis_history(
         # Sort by timestamp (newest first)
         analysis_history.sort(key=lambda x: x["timestamp"], reverse=True)
         
+        print(f"[HISTORY] Returning {len(analysis_history)} analysis records for user {current_user.id}")
         logger.info(f"Returning {len(analysis_history)} analysis records for user {current_user.id}")
         
         return {

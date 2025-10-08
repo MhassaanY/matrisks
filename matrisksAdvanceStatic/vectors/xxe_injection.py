@@ -1,11 +1,14 @@
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 import staticDVM
 
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks for insecurely configured XML parsers that could be vulnerable to XML External Entity (XXE) injection."
     tags = ["XXE_INJECTION"]
 
+    # Features to prevent XXE. Key: feature string, Value: desired boolean state.
     SECURE_FEATURES = {
         "http://xml.org/sax/features/external-general-entities": False,
         "http://xml.org/sax/features/external-parameter-entities": False,
@@ -13,33 +16,71 @@ class Vector(VectorBase):
     }
 
     def analyze(self) -> None:
-        found_vulnerable_parsers = set()
+        vulnerable_locations = set()
 
-        # Check for DocumentBuilderFactory
+        # 1. Check for DocumentBuilderFactory
         dbf_methods = self.analysis.find_methods("Ljavax/xml/parsers/DocumentBuilderFactory;", "newDocumentBuilder", "()Ljavax/xml/parsers/DocumentBuilder;")
         for path in staticDVM.get_paths(dbf_methods):
-            # This is a simplified check. A full implementation would require taint analysis
-            # to track the factory from its instantiation to the newDocumentBuilder call,
-            # checking all setFeature calls in between.
-            # For now, we report any usage as a point of manual review.
             source_method = path['src_method']
-            finding = f"Potential XXE vulnerability. XML parser is used in {source_method.get_class_name()}->{source_method.get_name()}. Please manually verify that XXE protection is enabled."
-            found_vulnerable_parsers.add(finding)
+            if not self.is_securely_configured(source_method):
+                vulnerable_locations.add(source_method)
 
-        # Check for SAXParserFactory
+        # 2. Check for SAXParserFactory
         spf_methods = self.analysis.find_methods("Ljavax/xml/parsers/SAXParserFactory;", "newSAXParser", "()Ljavax/xml/parsers/SAXParser;")
         for path in staticDVM.get_paths(spf_methods):
             source_method = path['src_method']
-            finding = f"Potential XXE vulnerability. SAX parser is used in {source_method.get_class_name()}->{source_method.get_name()}. Please manually verify that XXE protection is enabled."
-            found_vulnerable_parsers.add(finding)
+            if not self.is_securely_configured(source_method):
+                vulnerable_locations.add(source_method)
 
-
-        if found_vulnerable_parsers:
+        if vulnerable_locations:
             self.writer.startWriter("POTENTIAL_XXE_VULNERABILITY", LEVEL_WARNING, "Potential XXE Injection Vulnerability",
-                                    "The application uses XML parsers that might be configured insecurely, potentially allowing XML External Entity (XXE) attacks. This can lead to information disclosure or denial of service.",
+                                    "The application uses XML parsers without disabling features that can lead to XML External Entity (XXE) attacks. This can result in information disclosure or denial of service.",
                                     ["Security", "Injection"], vector_name=self.vector_name,
-                                    suggestion="Ensure all XML parsers are configured to disable DTDs and external entities. For DocumentBuilderFactory, call setFeature(\"http://apache.org/xml/features/disallow-doctype-decl\", true).",
-                                    confidence=3, risk="Medium")
+                                    suggestion="Ensure all XML parsers are configured to disable DTDs and external entities. For DocumentBuilderFactory, call setFeature('http://apache.org/xml/features/disallow-doctype-decl', true) before creating the parser.",
+                                    confidence=4, risk="High")
             
-            for finding in sorted(list(found_vulnerable_parsers)):
-                self.writer.write(finding)
+            for method in sorted(vulnerable_locations, key=lambda m: m.get_class_name()):
+                self.writer.write(f"Insecure XML parser created in: {self.writer.simplifyClassPath(method.get_class_name())}->{method.get_name()}")
+
+    def is_securely_configured(self, method) -> bool:
+        """
+        Analyzes the method's bytecode to see if it calls `setFeature` with secure values.
+        This is a heuristic that checks for configuration within the same method.
+        Returns True if a secure configuration is found, False otherwise.
+        """
+        if method.is_external():
+            return True # Cannot analyze external code, assume it's safe.
+
+        code = method.get_method().get_code()
+        if not code:
+            return True
+
+        instructions = list(code.get_bc().get_instructions())
+        features_set = {}
+
+        for idx, ins in enumerate(instructions):
+            if ins.get_name() == 'invoke-virtual' and ins.get_operands()[-1][1].get_name() == 'setFeature':
+                
+                register_analyzer = staticDVM.RegisterAnalyzerVMImmediateValue()
+                register_analyzer.load_instructions(instructions, idx)
+                
+                operands = ins.get_operands()
+                if len(operands) >= 3:
+                    feature_string_reg = operands[1][1]
+                    feature_value_reg = operands[2][1]
+
+                    feature_string = register_analyzer.get_register_value(feature_string_reg)
+                    feature_value_int = register_analyzer.get_register_value(feature_value_reg)
+                    
+                    if feature_string is not None and feature_value_int is not None:
+                        feature_value = (feature_value_int == 1)
+                        features_set[feature_string] = feature_value
+
+        # Check if all required secure features are set correctly
+        all_secure = True
+        for feature, required_value in self.SECURE_FEATURES.items():
+            if features_set.get(feature) != required_value:
+                all_secure = False
+                break
+        
+        return all_secure

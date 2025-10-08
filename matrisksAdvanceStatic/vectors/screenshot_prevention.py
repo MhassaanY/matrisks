@@ -1,9 +1,10 @@
 import staticDVM
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
-from engines import *
 
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Developers preventing screenshot capturing checking"
     tags = ["HACKER_PREVENT_SCREENSHOT_CHECK"]
 
@@ -41,5 +42,5 @@ class Vector(VectorBase):
         else:
             self.writer.startWriter("HACKER_PREVENT_SCREENSHOT_CHECK", LEVEL_INFO,
                                "Code Setting Preventing Screenshot Capturing",
-                               "Did not detect this app has code setting preventing screenshot capturing.", ["Hacker"])
+                               "Did not detect this app has code setting preventing screenshot capturing.", ["Hacker"], vector_name=self.vector_name)
 

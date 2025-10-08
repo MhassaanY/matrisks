@@ -131,6 +131,28 @@ async def get_analysis_engines(
             "last_updated": datetime.fromtimestamp(advanced_static_path.stat().st_mtime).isoformat()
         })
     
+    # Check for AI-based Malware Detection Engine
+    ai_malware_path = project_root / "ai_based_malware_detection"
+    if ai_malware_path.exists():
+        # Check if the model file exists
+        model_path = ai_malware_path / "model" / "trained_model.pkl"
+        model_status = "active" if model_path.exists() else "inactive"
+        
+        engines.append({
+            "id": "ai-malware",
+            "name": "AI Malware Detection",
+            "description": "Advanced AI-powered malware classification using machine learning with 98%+ accuracy. Detects malicious APKs using behavioral analysis and pattern recognition",
+            "status": model_status,
+            "version": "1.0.0",
+            "path": str(ai_malware_path),
+            "supported_formats": ["json"],
+            "last_updated": datetime.fromtimestamp(ai_malware_path.stat().st_mtime).isoformat(),
+            "model_info": {
+                "model_available": model_path.exists(),
+                "model_path": str(model_path) if model_path.exists() else None
+            }
+        })
+    
     return engines
 
 @router.get("/analysis-history")
@@ -156,6 +178,8 @@ async def get_analysis_history(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Only superusers can access this resource"
         )
+    
+    print(f"[ADMIN HISTORY] Fetching ALL analysis history for admin user {current_user.id}")
     
     # Get the project root directory
     project_root = Path(__file__).parent.parent.parent.parent
@@ -214,6 +238,7 @@ async def get_analysis_history(
                         entry["confidence"] = manifest_data.get("confidence", 0.0)
                     
                     analysis_history.append(entry)
+                    print(f"[ADMIN HISTORY] Added {engine_name} scan: {scan_dir.name} - {apk_name} at {entry['timestamp']}")
     
     # 2. Also get AI malware detection results from database (for backward compatibility)
     # This catches any AI scans that might not have scan directories yet
@@ -251,5 +276,10 @@ async def get_analysis_history(
     
     # Sort by timestamp (newest first)
     analysis_history.sort(key=lambda x: x["timestamp"], reverse=True)
+    
+    print(f"[ADMIN HISTORY] Returning {len(analysis_history)} total analysis records")
+    if len(analysis_history) > 0:
+        print(f"[ADMIN HISTORY] First record: {analysis_history[0]}")
+        print(f"[ADMIN HISTORY] Sample record keys: {list(analysis_history[0].keys())}")
     
     return analysis_history

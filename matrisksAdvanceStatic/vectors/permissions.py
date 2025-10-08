@@ -1,20 +1,12 @@
 import collections
 import re
 import utils
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 
-
-PROTECTION_NORMAL = 0   # "normal" or not set
-PROTECTION_DANGEROUS = 1
-PROTECTION_SIGNATURE = 2
-PROTECTION_SIGNATURE_OR_SYSTEM = 3
-PROTECTION_MASK_BASE = 15
-PROTECTION_FLAG_SYSTEM = 16
-PROTECTION_FLAG_DEVELOPMENT = 32
-PROTECTION_MASK_FLAGS = 240
-
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks if app has correct permissions"
     tags = ["USE_PERMISSION_ACCESS_MOCK_LOCATION", "PERMISSION_GROUP_EMPTY_VALUE",
             "USE_PERMISSION_SYSTEM_APP", "USE_PERMISSION_CRITICAL",
@@ -411,27 +403,27 @@ class Vector(VectorBase):
                     if i not in list_alerting_exposing_components_Google:
                         list_alerting_exposing_components_Google.append(i)
 
-        if list_alerting_exposing_components_NonGoogle or list_alerting_exposing_components_Google:
-            if list_alerting_exposing_components_NonGoogle:
-                self.writer.startWriter("PERMISSION_EXPORTED", LEVEL_WARNING,
-                                        "AndroidManifest Exported Components Checking",
-                                        """Found "exported" components(except for Launcher, vector_name=self.vector_name) for receiving outside applications' actions (AndroidManifest.xml). 
-    These components can be initilized by other apps. You should add or modify the attribute to [exported="false"] if you don't want to. 
-    You can also protect it with a customized permission with "signature" or higher protectionLevel and specify in "android:permission" attribute.""")
+        # if list_alerting_exposing_components_NonGoogle or list_alerting_exposing_components_Google:
+        #     if list_alerting_exposing_components_NonGoogle:
+        #         self.writer.startWriter("PERMISSION_EXPORTED", LEVEL_WARNING,
+        #                                 "AndroidManifest Exported Components Checking",
+        #                                 """Found "exported" components(except for Launcher, vector_name=self.vector_name) for receiving outside applications\' actions (AndroidManifest.xml). 
+    # These components can be initilized by other apps. You should add or modify the attribute to [exported="false"] if you don't want to. 
+    # You can also protect it with a customized permission with "signature" or higher protectionLevel and specify in "android:permission" attribute.""", vector_name=self.vector_name)
 
-                for i in list_alerting_exposing_components_NonGoogle:
-                    self.writer.write("%10s => %s" % (i[0], i[1]))
+        #         for i in list_alerting_exposing_components_NonGoogle:
+        #             self.writer.write("%10s => %s" % (i[0], i[1]))
 
-            if list_alerting_exposing_components_Google:
-                self.writer.startWriter("PERMISSION_EXPORTED_GOOGLE", LEVEL_NOTICE,
-                                        "AndroidManifest Exported Components Checking 2",
-                                        "Found \"exported\" components(except for Launcher, vector_name=self.vector_name) for receiving Google's \"Android\" actions (AndroidManifest.xml):")
+        #     if list_alerting_exposing_components_Google:
+        #         self.writer.startWriter("PERMISSION_EXPORTED_GOOGLE", LEVEL_NOTICE,
+        #                                 "AndroidManifest Exported Components Checking 2",
+        #                                 "Found \"exported\" components(except for Launcher, vector_name=self.vector_name) for receiving Google\'s \"Android\" actions (AndroidManifest.xml):", vector_name=self.vector_name)
 
-                for i in list_alerting_exposing_components_Google:
-                    self.writer.write("%10s => %s" % (i[0], i[1]))
-        else:
-            self.writer.startWriter("PERMISSION_EXPORTED", LEVEL_INFO, "AndroidManifest Exported Components Checking",
-                                    "No exported components(except for Launcher) for receiving Android or outside applications' actions (AndroidManifest.xml).", vector_name=self.vector_name)
+        #         for i in list_alerting_exposing_components_Google:
+        #             self.writer.write("%10s => %s" % (i[0], i[1]))
+        # else:
+        #     self.writer.startWriter("PERMISSION_EXPORTED", LEVEL_INFO, "AndroidManifest Exported Components Checking",
+        #                             "No exported components(except for Launcher) for receiving Android or outside applications\' actions (AndroidManifest.xml).", vector_name=self.vector_name)
 
         # ------------------------------------------------------------------------
         # "exported" checking (provider):
@@ -510,7 +502,7 @@ class Vector(VectorBase):
       (1)https://www.nowsecure.com/mobile-security/ebay-android-content-provider-injection-vulnerability.html
       (2)http://blog.trustlook.com/2013/10/23/ebay-android-content-provider-information-disclosure-vulnerability/
       (3)http://www.wooyun.org/bugs/wooyun-2010-039169
-    """)
+    """, vector_name=self.vector_name)
 
                 for i in list_alerting_exposing_providers_no_exported_setting:
                     self.writer.write("%10s => %s" % ("provider", i[0]))
@@ -523,7 +515,7 @@ class Vector(VectorBase):
     Vulnerable ContentProvider Case Example: 
       (1)https://www.nowsecure.com/mobile-security/ebay-android-content-provider-injection-vulnerability.html
       (2)http://blog.trustlook.com/2013/10/23/ebay-android-content-provider-information-disclosure-vulnerability/
-      (3)http://www.wooyun.org/bugs/wooyun-2010-039169""")
+      (3)http://www.wooyun.org/bugs/wooyun-2010-039169""", vector_name=self.vector_name)
                 for i in list_alerting_exposing_providers:
                     self.writer.write("%10s => %s" % ("provider", i[0]))
 
@@ -577,7 +569,7 @@ class Vector(VectorBase):
                                         """Misconfiguration in "intent-filter" of these components (AndroidManifest.xml, vector_name=self.vector_name). 
     Config "intent-filter" should not have "android:exported" or "android:enabled" attribute. 
     Reference: http://developer.android.com/guide/topics/manifest/intent-filter-element.html
-    """)
+    """, vector_name=self.vector_name)
                 for tag, name in list_wrong_intent_filter_settings:
                     self.writer.write("%10s => %s" % (tag, name))
 
@@ -587,7 +579,7 @@ class Vector(VectorBase):
                                         """Misconfiguration in "intent-filter" of these components (AndroidManifest.xml, vector_name=self.vector_name).
     Config "intent-filter" should have at least one "action".
     Reference: http://developer.android.com/guide/topics/manifest/intent-filter-element.html
-    """)
+    """, vector_name=self.vector_name)
                 for tag, name in list_no_actions_in_intent_filter:
                     self.writer.write("%10s => %s" % (tag, name))
         else:

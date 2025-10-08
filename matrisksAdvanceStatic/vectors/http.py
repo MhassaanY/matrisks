@@ -1,81 +1,68 @@
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
-from engines import *
 
-class Vector(VectorBase):
-    description = "HttpURLConnection bug checking"
+class Vector(Vector):
+    description = "Checks for a connection pooling bug in HttpURLConnection on pre-Froyo devices."
     tags = ["HTTPURLCONNECTION_BUG"]
 
     def analyze(self) -> None:
-        # HttpURLConnection bug checking:
+        # This bug affects Android versions prior to 2.2 (Froyo, API 8)
+        if int(self.apk.get_min_sdk_version()) >= 8:
+            self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Bug (Pre-Froyo)",
+                               "Analysis skipped: minSdk is higher than 8.", vector_name=self.vector_name)
+            return
 
-        """
-            Example Java code:
-                private void disableConnectionReuseIfNecessary() {
-                    // Work around pre-Froyo bugs in HTTP connection reuse.
-                    if (Integer.parseInt(Build.VERSION.SDK) < Build.VERSION_CODES.FROYO) {
-                        System.setProperty("http.keepAlive", "false");
-                    }
-                }
+        # Find all methods of HttpURLConnection
+        http_uc_class = self.vm.get_class("Ljava/net/HttpURLConnection;")
+        if not http_uc_class:
+            self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Bug (Pre-Froyo)",
+                               "Analysis skipped: HttpURLConnection class not found.", vector_name=self.vector_name)
+            return
 
-            Example Bytecode code:
-                const-string v0, "http.keepAlive"
-                const-string v1, "false"
-                invoke-static {v0, v1}, Ljava/lang/System;->setProperty(Ljava/lang/String;Ljava/lang/String;)Ljava/lang/String;
+        http_uc_methods = http_uc_class.get_methods()
 
-        """
-        if (self.int_min_sdk is not None) and (self.int_min_sdk <= 8):
+        # Find all callers of HttpURLConnection methods
+        http_usage_callers = set()
+        for method in http_uc_methods:
+            for caller in self.call_graph.get_callers(method):
+                http_usage_callers.add(caller.get_class_name())
 
-            pkg_http_url_connection = self.analysis.find_classes("Ljava/net/HttpURLConnection;")
-            pkg_http_url_connection = self.filtering_engine.filter_class_analysis_list(pkg_http_url_connection)
+        if not http_usage_callers:
+            self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Bug (Pre-Froyo)",
+                               "Analysis skipped: HttpURLConnection is not used in this application.", vector_name=self.vector_name)
+            return
 
-            # Check only when using the HttpURLConnection
-            if pkg_http_url_connection:
+        # Check if the workaround is in place
+        set_property_paths = self.vm_analysis.find_methods(
+            classname="Ljava/lang/System;",
+            methodname="setProperty",
+            descriptor="(Ljava/lang/String; Ljava/lang/String;)Ljava/lang/String;"
+        )
 
-                list_pre_froyo_http_url_connection = []
-                path_pre_froyo_http_url_connection = self.analysis.find_methods(
-                    "Ljava/lang/System;", "setProperty", "(Ljava/lang/String; Ljava/lang/String;)Ljava/lang/String;")
+        keep_alive_disabled = False
+        for path in set_property_paths:
+            # This is a basic check. A more advanced analysis would trace the arguments to setProperty.
+            # For now, we assume that if setProperty is called with "http.keepAlive", it's to disable it.
+            for _, method, _ in path.get_xref_from():
+                for instruction in method.get_instructions():
+                    if instruction.get_name() == 'const-string' and "http.keepAlive" in instruction.get_output():
+                        keep_alive_disabled = True
+                        break
+                if keep_alive_disabled:
+                    break
+            if keep_alive_disabled:
+                break
 
-                has_http_keepAlive_Name = False
-                has_http_keep_alive_value = False
-
-                for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_pre_froyo_http_url_connection):
-                    if i.getResult()[0] == "http.keepAlive":
-                        has_http_keepAlive_Name = True
-                        list_pre_froyo_http_url_connection.append(i.getPath())  # Only list the "false" one
-                        if i.getResult()[1] == "false":
-                            has_http_keep_alive_value = True
-                            break
-
-                if has_http_keepAlive_Name:
-                    if has_http_keep_alive_value:
-                        self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO,
-                                           "HttpURLConnection Android Bug Checking",
-                                           "System property \"http.keepAlive\" for \"HttpURLConnection\" sets correctly.", vector_name=self.vector_name)
-
-                    else:
-                        output_string = "The application does not disable connection pooling for HttpURLConnection on versions of Android prior to 2.2 (Froyo). This can lead to connection pool poisoning."
-                        self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_NOTICE,
-                                           "HttpURLConnection Bug on Pre-Froyo Devices",
-                                           output_string, vector_name=self.vector_name,
-                                           suggestion='On Android versions prior to Froyo, call `System.setProperty("http.keepAlive", "false")` before making HttpURLConnections to disable connection pooling and avoid bugs.',
-                                           confidence=5, risk="Low")
-
-                        self.writer.show_Paths(list_pre_froyo_http_url_connection)  # Notice: list_pre_Froyo_HttpURLConnection
-                else:
-                    output_string = "The application does not disable connection pooling for HttpURLConnection on versions of Android prior to 2.2 (Froyo). This can lead to connection pool poisoning."
-
-                    self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_NOTICE, "HttpURLConnection Bug on Pre-Froyo Devices",
-                                       output_string, vector_name=self.vector_name,
-                                       suggestion='On Android versions prior to Froyo, call `System.setProperty("http.keepAlive", "false")` before making HttpURLConnections to disable connection pooling and avoid bugs.',
-                                       confidence=5, risk="Low")
-                    # Make it optional to list library
-                    self.writer.show_xrefs_class_analysis_list(pkg_http_url_connection)  # Notice: pkg_HttpURLConnection
-
-            else:
-                self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
-                                   "Ignore checking \"http.keepAlive\" because you're not using \"HttpURLConnection\".", vector_name=self.vector_name)
-
+        if keep_alive_disabled:
+            self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Bug (Pre-Froyo)",
+                                   "The application correctly disables http.keepAlive, mitigating a connection pooling bug on older Android versions.", vector_name=self.vector_name)
         else:
-            self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_INFO, "HttpURLConnection Android Bug Checking",
-                               "Ignore checking \"http.keepAlive\" because you're not using \"HttpURLConnection\" and min_Sdk > 8.", vector_name=self.vector_name)
+            self.writer.startWriter("HTTPURLCONNECTION_BUG", LEVEL_NOTICE, "HttpURLConnection Bug on Pre-Froyo Devices",
+                                   "The application uses HttpURLConnection and targets older Android versions without disabling connection pooling. This can lead to connection pool poisoning on devices running Android versions prior to 2.2 (Froyo).",
+                                   ["Compatability"], vector_name=self.vector_name,
+                                   suggestion='On Android versions prior to Froyo, call `System.setProperty("http.keepAlive", "false")` before making any HttpURLConnections to disable connection pooling and avoid this bug.',
+                                   confidence=5, risk="Low")
+            
+            self.writer.write("HttpURLConnection usage found in the following classes:")
+            for class_name in sorted(list(http_usage_callers)):
+                self.writer.write(f"- {self.writer.simplifyClassPath(class_name)}")

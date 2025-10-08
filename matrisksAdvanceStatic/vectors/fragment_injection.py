@@ -1,12 +1,12 @@
 import re
 
 import staticDVM
-import helper_functions
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 
-
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks severe fragment injection vulnerability prior to Android 4.4 (API 19)."
     tags = ["FRAGMENT_INJECTION"]
 
@@ -17,7 +17,10 @@ class Vector(VectorBase):
         REGEXP_EXCLUDE_CLASSESd_fragment_class = re.compile("(Landroid/support/)|(Lcom/actionbarsherlock/)")
         list_Fragment = []
 
-        for dalvik in self.dalvik:
+        # Handle both single DEX and list of DEX
+        dalvik_list = [self.dalvik] if not isinstance(self.dalvik, list) else self.dalvik
+        
+        for dalvik in dalvik_list:
             for cls in dalvik.get_classes():
                 if (cls.get_superclassname() == "Landroid/app/Fragment;") or prog.match(cls.get_superclassname()):
                     if not REGEXP_EXCLUDE_CLASSESd_fragment_class.match(cls.get_name()):
@@ -38,7 +41,7 @@ class Vector(VectorBase):
                             cls.get_superclassname() == "Lcom/actionbarsherlock/app/SherlockPreferenceActivity;"):
                         boolHas_isValidFragment = False
                         method_isValidFragment = None
-                        for method in helper_functions.iter_encoded_methods(cls):
+                        for method in cls.get_methods():
                             if (method.get_name() == "isValidFragment") and (
                                     method.get_descriptor() == "(Ljava/lang/String;)Z"):
                                 boolHas_isValidFragment = True
@@ -72,7 +75,7 @@ class Vector(VectorBase):
                                confidence=5, risk="Critical")
 
             if list_Fragment_vulnerability_NonMethod_classes:
-                if self.int_target_sdk >= 19:
+                if int(self.apk.get_target_sdk_version()) >= 19:
                     # You must override. Otherwise, it always throws Exception
                     self.writer.write(
                         "You MUST override 'isValidFragment' method in every \"PreferenceActivity\" class to avoid Exception throwing in Android 4.4:")

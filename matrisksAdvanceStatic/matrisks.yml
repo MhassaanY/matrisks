@@ -5,6 +5,8 @@
 hardcoded_secrets:
   entropy_threshold: 4.0
   wordlist_path: "wordlist.txt"
+  min_len: 20
+  max_len: 100
 
 # Enable or disable vectors by their module name.
 # The script will load only the vectors listed under 'enabled'.
@@ -39,9 +41,9 @@ vectors:
     - ssl
     - storage
     - strandhogg
-    - weak_cryptography
+    - cryptography
     - webview
-    - pii_logging
     - xxe_injection
+    - taint_analysis
   disabled:
     []

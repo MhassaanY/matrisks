@@ -1,9 +1,17 @@
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
-from androguard.core import dex as dvm
+try:
+    # Try androguard 4.x imports
+    from androguard.core import dex as dvm
+except ImportError:
+    # Fall back to androguard 3.x imports
+    from androguard.core.bytecodes import dvm
 from timeit import default_timer as timer
+import staticDVM
 
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks if debug mode is enabled, " \
                   "if a debug certificate is present, and " \
                   "if debug mode detection is used"
@@ -18,6 +26,13 @@ class Vector(VectorBase):
         self.check_is_debuggable()
         self.check_has_debuggable_certificate()
         self.check_detects_debuggable()
+        self.check_ro_debuggable()
+        self.check_anti_debugging()
+        self.check_is_debuggable()
+        self.check_has_debuggable_certificate()
+        self.check_detects_debuggable()
+        self.check_ro_debuggable()
+        self.check_anti_debugging()
 
     def check_is_debuggable(self) -> None:
         is_debug_open = self.apk.get_attribute_value('application', 'debuggable') not in (None, "false")
@@ -47,8 +62,6 @@ class Vector(VectorBase):
                                 "App is signed with a production certificate. This is good.",
                                 ["Debug"], vector_name=self.vector_name)
 
-    # See also: https://web.archive.org/web/20200726122505/http://izvornikod.com/Blog/tabid/82/EntryId/13/How-to
-    # -check-if-your-android-application-is-running-in-debug-or-release-mode.aspx
     def check_detects_debuggable(self) -> None:
 
         start = timer()
@@ -74,36 +87,16 @@ class Vector(VectorBase):
                                 ["Debug", "Hacker"], vector_name=self.vector_name)
 
     def _scan_for_debuggable_checks(self):
-        """
-            Java code checking debuggable:
-                    boolean isDebuggable = (0 != (getApplicationInfo().flags & ApplicationInfo.FLAG_DEBUGGABLE));
-                    if (isDebuggable) { }
-
-                Smali code checking debuggable:
-                    invoke-virtual {p0}, Lcom/example/androiddebuggable/MainActivity;->getApplicationInfo()Landroid/content/pm/ApplicationInfo;
-                    move-result-object v1
-                    iget v1, v1, Landroid/content/pm/ApplicationInfo;->flags:I
-                    and-int/lit8 v1, v1, 0x2
-                    if-eqz v1, :cond_0
-
-                Checking Pattern:
-                    1. Find tainted calling field: Landroid/content/pm/ApplicationInfo;->flags:I
-                    2. Get the next instruction of the calling field: Landroid/content/pm/ApplicationInfo;->flags:I
-                    3. Check whether the next instruction is 0xDD(and-int/lit8) and make sure the register numbers are all matched
-                        iget [[v1]], v1, [[[Landroid/content/pm/ApplicationInfo;->flags:I]]]
-                        and-int/lit8 v1, [[v1]], [0x2]
-        """
-        # Do a quick scan to detect if there are any Landroid/content/pm/ApplicationInfo;->flags fields present,
-        # saving time if there are no such fields in the application
-        if not any([dalvik for dalvik in self.dalvik
-                    if any([i for i in dalvik.get_fields()
+        # Handle both single DEX and list of DEX
+        dalvik_list = [self.dalvik] if not isinstance(self.dalvik, list) else self.dalvik
+        
+        if not any([dalvik for dalvik in dalvik_list
+                    if any([i for i in dalvik.get_all_fields()
                                 if i.get_list() == ['Landroid/content/pm/ApplicationInfo;', 'I', 'flags']
                             ])
                    ]):
             return []
 
-        # Loop over all methods and retrieve methods that contain ApplicationInfo;->flags fields and access its debug flag
-        # List comprehensions are used for performance purposes
         return [method_analysis.get_method()
                 for method_analysis in self.analysis.get_methods()
                     if not method_analysis.is_external() and \
@@ -111,24 +104,54 @@ class Vector(VectorBase):
                 ]
 
     def _scan_method_instructions_for_application_info(self, instructions):
-        """
-        Returns if there any instructions that access ApplicationInfo;->flags fields and subsequently access its debug flag
-        """
         return any([True
                     for instruction in instructions
                         if instruction.get_op_value() == self.OPCODES["iget"] and \
                             instruction.get_operands()[2][2] == "Landroid/content/pm/ApplicationInfo;->flags I" and \
-                            self._does_next_instruction_access_debug_flag(instruction.get_operands()[0][1], next(instructions))
+                            self._does_next_instruction_access_debug_flag(instruction.get_operands()[0], next(instructions))
                     ])
 
     def _does_next_instruction_access_debug_flag(self, flags_register, instruction):
-        """
-        Checks if the instruction accesses the debug flag in the register that contains ApplicationInfo;->flags
-        """
         operands = instruction.get_operands()
         opcode = instruction.get_op_value()
         if opcode == self.OPCODES["and-int/lit8"] and \
-                operands[2][1] == 2 and \
+                operands[2] == (dvm.OPERAND_LITERAL, 2) and \
                 operands[1] == flags_register:
             return True
         return False
+
+    def check_ro_debuggable(self) -> None:
+        """Checks for ro.debuggable system property check."""
+        paths = self.analysis.find_methods(
+            classname="Landroid/os/SystemProperties;",
+            methodname="get",
+            descriptor="(Ljava/lang/String;)Ljava/lang/String;"
+        )
+
+        if paths:
+            for path in staticDVM.get_paths(paths):
+                if 'ro.debuggable' in path['src_method'].get_code().get_strings():
+                    self.writer.startWriter("ANTI_DEBUG_RO_DEBUGGABLE", LEVEL_NOTICE, "Anti-Debugging Technique Detected",
+                                            "The application checks the ro.debuggable system property to detect if it is running on a debuggable build.",
+                                            ["Anti_Debug"], vector_name=self.vector_name,
+                                            suggestion="This is an informational finding. Verify that this check is implemented securely and does not introduce other vulnerabilities.",
+                                            confidence=4, risk="Info")
+                    self.writer.write(f"ro.debuggable check found in: {self.writer.simplifyClassPath(path['src_method'].get_class_name())}")
+                    return
+
+    def check_anti_debugging(self) -> None:
+        """Checks for common anti-debugging techniques."""
+        # Check for installation timestamp check
+        paths = self.analysis.find_fields(
+            fieldname="firstInstallTime",
+            fieldtype="J"
+        )
+
+        if paths:
+            self.writer.startWriter("ANTI_DEBUG_INSTALL_TIME", LEVEL_NOTICE, "Anti-Debugging Technique Detected",
+                                    "The application checks the installation timestamp, which can be used to detect if the application is running in an emulator or a testing environment.",
+                                    ["Anti_Debug"], vector_name=self.vector_name,
+                                    suggestion="This is an informational finding. Verify that this check is implemented securely and does not introduce other vulnerabilities.",
+                                    confidence=3, risk="Info")
+            for path in staticDVM.get_paths(paths):
+                self.writer.write(f"Installation timestamp check found in: {self.writer.simplifyClassPath(path['src_method'].get_class_name())}")

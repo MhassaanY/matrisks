@@ -1,9 +1,10 @@
 import staticDVM
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 
-
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks SMS sending"
     tags = ["SENSITIVE_SMS"]
     def analyze(self) -> None:

@@ -31,6 +31,19 @@ build/
 
 # Generated analysis outputs
 matrisksBasicStatic/scanned_results/
+matrisksAdvanceStatic/scanned_results/
+ai_based_malware_detection/scanned_results/
+
+# Large binary files and test data
+matrisksAdvanceStatic/lib/*.jar
+matrisksAdvanceStatic/bin/
+matrisksAdvanceStatic/DroidBench/
+matrisksAdvanceStatic/golden_corpus/
+matrisksAdvanceStatic/golden_corpus_results/
+matrisksAdvanceStatic/golden_reports/
+matrisksAdvanceStatic/test_applications/*.apk
+matrisksAdvanceStatic/decompiled/
+matrisksAdvanceStatic/decompiled_apks/
 
 # IDE/editor
 .vscode/

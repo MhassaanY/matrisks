@@ -1,0 +1,34 @@
+{
+  "sources": [
+    {
+      "signature": "Landroid/telephony/TelephonyManager;->getDeviceId()Ljava/lang/String;",
+      "description": "Returns the unique device ID, for example, the IMEI for GSM and the MEID or ESN for CDMA phones."
+    },
+    {
+      "signature": "Landroid/telephony/TelephonyManager;->getLine1Number()Ljava/lang/String;",
+      "description": "Returns the phone number string for line 1, for example, the MSISDN for a GSM phone."
+    },
+    {
+      "signature": "Landroid/location/LocationManager;->getLastKnownLocation(Ljava/lang/String;)Landroid/location/Location;",
+      "description": "Gets the last known location from the given provider, or null if there is no last known location."
+    }
+  ],
+  "sinks": [
+    {
+      "signature": "Landroid/util/Log;->d(Ljava/lang/String; Ljava/lang/String;)I",
+      "description": "Send a DEBUG log message."
+    },
+    {
+      "signature": "Landroid/util/Log;->e(Ljava/lang/String; Ljava/lang/String;)I",
+      "description": "Send an ERROR log message."
+    },
+    {
+      "signature": "Ljava/io/File;-><init>(Ljava/lang/String;)V",
+      "description": "Creates a new File instance from a parent abstract pathname and a child pathname string."
+    },
+    {
+      "signature": "Ljava/net/URL;-><init>(Ljava/lang/String;)V",
+      "description": "Creates a URL object from the String representation."
+    }
+  ]
+}

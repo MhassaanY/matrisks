@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Matrisks Finding",
+  "description": "A single finding from a Matrisks scan.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "A unique identifier for the finding, in the format VEC-XXX.",
+      "type": "string",
+      "pattern": "^[A-Z_]+$"
+    },
+    "title": {
+      "description": "A short, human-readable title for the finding.",
+      "type": "string"
+    },
+    "summary": {
+      "description": "A one-sentence summary of the finding.",
+      "type": "string"
+    },
+    "description": {
+      "description": "A more detailed description of the finding, including the vulnerability and its potential impact.",
+      "type": "string"
+    },
+    "severity": {
+      "description": "The severity of the finding.",
+      "type": "string",
+      "enum": ["Critical", "High", "Medium", "Low", "Info"]
+    },
+    "confidence": {
+      "description": "The confidence in the finding, on a scale of 1-5.",
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "risk": {
+        "description": "The risk of the finding.",
+        "type": "string",
+        "enum": ["Critical", "High", "Medium", "Low", "Info"]
+    },
+    "suggestion": {
+      "description": "A detailed suggestion for how to fix the vulnerability.",
+      "type": "string"
+    },
+    "vector": {
+      "description": "The name of the vector that produced the finding.",
+      "type": "string"
+    },
+    "cwe": {
+      "description": "The CWE ID for the finding, if applicable.",
+      "type": "integer"
+    },
+    "owasp_mobile": {
+        "description": "The OWASP Mobile Top 10 category for the finding, if applicable.",
+        "type": "string"
+    },
+    "details": {
+      "description": "The detailed evidence for the finding, such as code snippets or file paths.",
+      "type": "string"
+    }
+  },
+  "required": ["id", "title", "summary", "severity", "confidence", "vector"]
+}

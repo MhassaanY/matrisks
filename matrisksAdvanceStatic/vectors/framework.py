@@ -1,8 +1,9 @@
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 
-
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks if a framework was used to develop the app, and if so, which one."
     tags = ["FRAMEWORK"]
 

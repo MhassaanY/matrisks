@@ -1,9 +1,10 @@
 import staticDVM
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 
-
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks runtime exec"
     tags = ["COMMAND", "COMMAND_SU"]
 
@@ -36,7 +37,7 @@ class Vector(VectorBase):
             self.writer.startWriter("COMMAND", LEVEL_CRITICAL, "Runtime Command Checking",
                                     "This app is using critical function 'Runtime.getRuntime().exec("
                                     "\"...\")'.\nPlease confirm these following code secions are not harmful:",
-                                    ["Command"])
+                                    ["Command"], vector_name=self.vector_name)
 
             self.writer.show_Paths(path_runtime_exec)
 
@@ -50,4 +51,4 @@ class Vector(VectorBase):
         else:
             self.writer.startWriter("COMMAND", LEVEL_INFO, "Runtime Command Checking",
                                     "This app is not using critical function 'Runtime.getRuntime().exec(\"...\")'.",
-                                    ["Command"])
+                                    ["Command"], vector_name=self.vector_name)

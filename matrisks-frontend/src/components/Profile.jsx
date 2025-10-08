@@ -39,11 +39,27 @@ const Profile = () => {
         setMessage({ type: '', text: '' });
       }
       
+      console.log('[Profile] Fetching analysis history...');
+      
       // Get the history from the API
       const history = await getAnalysisHistory();
       
       console.log('[Profile] Received history:', history);
+      console.log('[Profile] History type:', typeof history);
+      console.log('[Profile] Is array:', Array.isArray(history));
       console.log('[Profile] History length:', history ? history.length : 0);
+      
+      if (!history) {
+        console.error('[Profile] History is null or undefined');
+        setAnalysisHistory([]);
+        return;
+      }
+      
+      if (!Array.isArray(history)) {
+        console.error('[Profile] History is not an array:', history);
+        setAnalysisHistory([]);
+        return;
+      }
       
       // Sort by timestamp (newest first)
       const sortedHistory = [...history].sort((a, b) => 
@@ -51,10 +67,14 @@ const Profile = () => {
       );
       
       console.log('[Profile] Setting analysisHistory with', sortedHistory.length, 'items');
+      console.log('[Profile] First item:', sortedHistory[0]);
       setAnalysisHistory(sortedHistory);
       
     } catch (error) {
-      console.error('Failed to fetch analysis history:', error);
+      console.error('[Profile] Error in fetchAnalysisHistory:', error);
+      console.error('[Profile] Error message:', error.message);
+      console.error('[Profile] Error stack:', error.stack);
+      
       // Only show error if we don't have any data to display
       if (analysisHistory.length === 0) {
         setMessage({ 

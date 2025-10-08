@@ -1,0 +1,28 @@
+{
+  "metadata": {
+    "analyze_mode": "single",
+    "analyze_engine_build": 1,
+    "apk_filepath_absolute": "/home/mhy/matrisksAdvanceStatic/golden_corpus/DivaApplication.apk",
+    "apk_file_size": 1.432699203491211,
+    "analyze_status": "fail",
+    "time_starting_analyze": "2025-09-19T02:56:02.714078+00:00",
+    "platform": "Android",
+    "package_name": "jakhar.aseem.diva",
+    "package_version_name": "1.0",
+    "package_version_code": 1,
+    "minSdk": 15,
+    "targetSdk": 23,
+    "file_md5": "82ab8b2193b3cfb1c737e3a786be363a",
+    "file_sha1": "27e849d9d7b86a3a3357fb3e980433a91d416801",
+    "file_sha256": "5cefc51fce9bd760b92ab2340477f4dda84b4ae0c5d04a8c9493e4fe34fab7c5",
+    "file_sha512": "86deea160864e4d48890b1e788e3ccc43bdd1d5a8c46d729d658b768093d4a3767d2bd885b7e5c722935f5ae477db415c62157943c0441dc64df7455d2a9cd25",
+    "analyze_error_detail_traceback": "Traceback (most recent call last):\n  File \"/home/mhy/matrisksAdvanceStatic/matrisks.py\", line 476, in main\n    __analyze(writer, args, config)\n  File \"/home/mhy/matrisksAdvanceStatic/matrisks.py\", line 345, in __analyze\n    _generate_analysis_index(a, d, dx, index_path)\n  File \"/home/mhy/matrisksAdvanceStatic/matrisks.py\", line 301, in _generate_analysis_index\n    for cls in d.get_classes():\n               ^^^^^^^^^^^^^\nAttributeError: 'list' object has no attribute 'get_classes'\n",
+    "analyze_error_type_expected": false,
+    "analyze_error_time": "2025-09-19T02:56:08.864500+00:00",
+    "analyze_error_id": "<class 'AttributeError'>",
+    "analyze_error_message": "'list' object has no attribute 'get_classes'",
+    "signature_unique_analyze": "fbd3d0156db536974f3d8018184190118bc54f511a5827eee75964a7232fde07eda1ee008605b1eb86b43e2b1eb9f519f6740c73f60a9ab9810daddad67a30c3",
+    "signature_unique_exception": "a1c0b10e5294b0b45392deb2adef514ff39b9caaf80a155519dd0eb762426573117dd4ff00b9f73e067789d39fb3a7b9773b9b6918cf62bfbe8a1823d502b498"
+  },
+  "findings": []
+}

@@ -1,9 +1,10 @@
 import staticDVM
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 
-
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = " Checks if an unprotected keystore is present, and if the application uses ssl pinning"
     tags = ["HACKER_KEYSTORE_NO_PWD", "HACKER_KEYSTORE_SSL_PINNING",
             "HACKER_KEYSTORE_LOCATION1", "HACKER_KEYSTORE_LOCATION2",

@@ -22,21 +22,26 @@ class ScanManager:
 
     def _lock_and_increment_counter(self):
         os.makedirs(self.root_folder, exist_ok=True)
-        with open(self.counter_path, "a+") as f:
+        lock_file = os.path.join(self.root_folder, ".lock")
+        while True:
             try:
-                fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                f.seek(0)
-                content = f.read()
-                last_id = int(content) if content.isdigit() else 0
-                new_id = last_id + 1
-                f.seek(0)
-                f.truncate()
-                f.write(str(new_id))
-                return new_id
-            except (IOError, BlockingIOError):
-                raise Exception("Could not acquire lock on counter file.")
-            finally:
-                fcntl.flock(f, fcntl.LOCK_UN)
+                with open(lock_file, "x") as f:
+                    with open(self.counter_path, "a+") as counter_f:
+                        counter_f.seek(0)
+                        content = counter_f.read()
+                        last_id = int(content) if content.isdigit() else 0
+                        new_id = last_id + 1
+                        counter_f.seek(0)
+                        counter_f.truncate()
+                        counter_f.write(str(new_id))
+                    os.remove(lock_file)
+                    return new_id
+            except FileExistsError:
+                time.sleep(0.1)
+            except Exception as e:
+                if os.path.exists(lock_file):
+                    os.remove(lock_file)
+                raise e
 
     def create_scan_environment(self):
         scan_number = self._lock_and_increment_counter()

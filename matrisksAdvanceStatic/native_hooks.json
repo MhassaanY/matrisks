@@ -1,0 +1,12 @@
+{
+    "hooks": [
+        {
+            "name": "execve",
+            "description": "Execute program"
+        },
+        {
+            "name": "system",
+            "description": "Execute shell command"
+        }
+    ]
+}

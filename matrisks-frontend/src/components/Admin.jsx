@@ -68,8 +68,23 @@ const Admin = () => {
     try {
       setLoading(true);
       const historyData = await getAdminAnalysisHistory();
-      console.log('[Admin] Received history data:', historyData);
-      console.log('[Admin] History length:', historyData ? historyData.length : 0);
+      
+      console.log('[Admin] RAW API Response:', historyData);
+      console.log('[Admin] Total records received:', historyData?.length || 0);
+      
+      if (!historyData || !Array.isArray(historyData)) {
+        console.error('[Admin] Invalid history data format');
+        setAnalysisHistory([]);
+        setMessage({ type: 'error', text: 'Failed to load analysis history' });
+        return;
+      }
+      
+      // Log first 5 records with their IDs and timestamps
+      console.log('[Admin] First 5 records:');
+      historyData.slice(0, 5).forEach((record, idx) => {
+        console.log(`  ${idx + 1}. ${record.id} - ${record.apk_name} @ ${record.timestamp}`);
+      });
+      
       setAnalysisHistory(historyData);
       setMessage({ type: '', text: '' });
     } catch (error) {
@@ -88,6 +103,16 @@ const Admin = () => {
       fetchEngines();
     } else if (activeSection === 'history') {
       fetchAnalysisHistory();
+      
+      // Set up polling for analysis history (refresh every 10 seconds)
+      const intervalId = setInterval(() => {
+        fetchAnalysisHistory();
+      }, 10000);
+      
+      // Clean up interval when section changes or component unmounts
+      return () => {
+        clearInterval(intervalId);
+      };
     }
   }, [activeSection]);
 
@@ -250,8 +275,13 @@ const Admin = () => {
       return <div className={styles.noData}>No analysis history found</div>;
     }
 
+    console.log(`[Admin] Rendering table with ${analysisHistory.length} rows`);
+
     return (
       <div className={styles.tableContainer}>
+        <div style={{ padding: '10px', background: '#2a2a3a', color: '#fff', marginBottom: '10px' }}>
+          <strong>Total Records: {analysisHistory.length}</strong> | Showing rows 1-{analysisHistory.length}
+        </div>
         <table className={styles.dataTable}>
           <thead>
             <tr>

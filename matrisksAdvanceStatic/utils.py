@@ -1,11 +1,6 @@
 import re
 
 
-def is_success_base64_decoded_string(base64_string):
-    # Punct: \:;/-.,?=<>+_()[]{}|"'~`*
-    return re.match(r'^[A-Za-z0-9\:;/-.,?=<>+_()[]{}|"\~`* ]+$', base64_string)
-
-
 def is_null_or_empty_string(input_string, strip_whitespaces=False):
     if input_string is None:
         return True
@@ -17,9 +12,6 @@ def is_null_or_empty_string(input_string, strip_whitespaces=False):
             return True
     return False
 
-
-def is_base64(base64_string):
-    return re.match('^[A-Za-z0-9+/]+[=]{0,2}$', base64_string)
 
 def get_elements_by_tagname(xml, tagname):
     results = []
@@ -35,3 +27,12 @@ def get_elements_by_tagname_sub(xml, tagname, results):
 
     if xml.tag == tagname:
         results.append(xml)
+
+def resolve_string(method, register):
+    """Resolves a constant string from a register."""
+    # This is a very basic implementation and only handles simple cases.
+    # A more advanced implementation would require a full-fledged symbolic execution engine.
+    for ins in method.get_instructions():
+        if ins.get_name() == 'const-string' and ins.get_output().startswith(register):
+            return ins.get_operands()[1]
+    return None

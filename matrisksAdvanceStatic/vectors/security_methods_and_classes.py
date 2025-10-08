@@ -1,8 +1,10 @@
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 import re
 
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks if there are any security related method and class names present"
     tags = ["Security_Methods", "Security_Classes"]
     def analyze(self) -> None:

@@ -1,11 +1,15 @@
 import collections
-
+import os
 import helper_functions
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 from engines import *
+import native_analyzer
+import staticDVM
 
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "get native methods and frameworks"
     tags = ["NATIVE_METHODS", "NATIVE_LIBS_LOADING"]
 
@@ -19,7 +23,7 @@ class Vector(VectorBase):
         dic_ndk_library_classname_to_ndkso_mapping = {}
         list_ndk_library_classname_to_ndkso_mapping = []
         path_ndk_library_classname_to_ndkso_mapping = self.analysis.find_methods("Ljava/lang/System;", "loadLibrary",
-                                                                                 r"\(Ljava/lang/String;\)V")
+                                                                                 "(Ljava/lang/String;)V")
         for i in staticDVM.trace_register_value_by_param_in_method_class_analysis_list(path_ndk_library_classname_to_ndkso_mapping):
             if (i.getResult()[0] is None) or (not i.is_string(0)):
                 continue
@@ -44,9 +48,12 @@ class Vector(VectorBase):
             self.writer.startWriter("NATIVE_LIBS_LOADING", LEVEL_INFO, "Native Library Loading Checking",
                                "No native library loaded.", vector_name=self.vector_name)
 
+        # Handle both single DEX and list of DEX
+        dalvik_list = [self.dalvik] if not isinstance(self.dalvik, list) else self.dalvik
+        
         dic_native_methods = {}
-        for dalvik in self.dalvik:
-            for method in helper_functions.iter_encoded_methods(dalvik):
+        for dalvik in dalvik_list:
+            for method in dalvik.get_methods():
                 # checks if method is native
                 if 0x100 & method.get_access_flags():
                     class_name = method.get_class_name()
@@ -76,3 +83,21 @@ class Vector(VectorBase):
         else:
             if self.args.extra == 2:  # The output may be too verbose, so make it an option
                 self.writer.startWriter("NATIVE_METHODS", LEVEL_INFO, "Native Methods Checking", "No native method found.", vector_name=self.vector_name)
+
+        if self.native_analyzer.so_files:
+            self.writer.startWriter("NATIVE_LIBS_ANALYSIS", LEVEL_INFO, "Native Library Analysis", "Analysis of native libraries:", vector_name=self.vector_name)
+            for so_file in self.native_analyzer.so_files:
+                self.writer.write(f"\nAnalysis of {os.path.basename(so_file)}:")
+                analysis = self.native_analyzer._analyze_so_file(so_file)
+                if analysis["symbols"]["exported"]:
+                    self.writer.write("  Exported Symbols:")
+                    for symbol in analysis["symbols"]["exported"]:
+                        self.writer.write(f"    - {symbol}")
+                if analysis["symbols"]["imported"]:
+                    self.writer.write("  Imported Symbols:")
+                    for symbol in analysis["symbols"]["imported"]:
+                        self.writer.write(f"    - {symbol}")
+                if analysis["strings"]:
+                    self.writer.write("  Strings:")
+                    for s in analysis["strings"]:
+                        self.writer.write(f'    - {s}')

@@ -1,0 +1,12 @@
+{
+  "findings": [
+    {
+      "id": "TEST_FINDING",
+      "title": "Test Finding",
+      "summary": "This is a test finding.",
+      "severity": "Info",
+      "confidence": 5,
+      "vector": "test_vector"
+    }
+  ]
+}

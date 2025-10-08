@@ -1,9 +1,10 @@
 import staticDVM
-from vector_base import VectorBase
+from vector_base import Vector
 from constants import *
 
-
-class Vector(VectorBase):
+class Vector(Vector):
+    def __init__(self, writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine):
+        super().__init__(writer, apk, vm, vm_analysis, decompiler, call_graph, native_analyzer, args, config, filtering_engine)
     description = "Checks if Android getting sensitive information such as IMEI, Android_ID, UUID"
     tags = ["SENSITIVE_DEVICE_ID", "SENSITIVE_SECURE_ANDROID_ID"]
 
@@ -25,7 +26,7 @@ class Vector(VectorBase):
     4.Bugs: We have seen a few instances of production phones for which the implementation is buggy and returns garbage, for example zeros or asterisks.
     If you want to get an unique id for the device, we suggest you use "Installation" framework in the following article.
     Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html
-    """, ["Sensitive_Information"])
+    """, ["Sensitive_Information"], vector_name=self.vector_name)
 
             self.writer.show_Paths(path_Device_id)
 
@@ -33,7 +34,7 @@ class Vector(VectorBase):
 
             self.writer.startWriter("SENSITIVE_DEVICE_ID", LEVEL_INFO, "Getting IMEI and Device ID",
                                     "Did not detect this app is getting the \"device id(IMEI)\" by \"TelephonyManager.getDeviceId()\" approach.",
-                                    ["Sensitive_Information"])
+                                    ["Sensitive_Information"], vector_name=self.vector_name)
 
         # Android "android_id"
 
@@ -55,7 +56,7 @@ class Vector(VectorBase):
          Also, there has been at least one widely-observed bug in a popular handset from a major manufacturer, where every instance has the same ANDROID_ID. 
          If you want to get an unique id for the device, we suggest you use "Installation" framework in the following article. 
          Please check the reference: http://android-developers.blogspot.tw/2011/03/identifying-app-installations.html 
-         """, ["Sensitive_Information"])
+         """, ["Sensitive_Information"], vector_name=self.vector_name)
 
             self.writer.show_Paths(list_android_id)
         else:
