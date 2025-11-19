@@ -131,12 +131,13 @@ async def get_analysis_result(
                     "data": ai_result
                 }
         
-        # Check if it's a static analysis scan directory
-        project_root = Path(__file__).parent.parent.parent.parent
+        # Check if it's a static analysis scan directory or dynamic analysis
+        project_root = Path(__file__).parent.parent.parent
         
         for engine_name, engine_path in [
             ("Basic Static", project_root / "matrisksBasicStatic"),
-            ("Advanced Static", project_root / "matrisksAdvanceStatic")
+            ("Advanced Static", project_root / "matrisksAdvanceStatic"),
+            ("Dynamic Analysis", project_root / "matrisksDynamicAnalyzer")
         ]:
             results_dir = engine_path / "scanned_results"
             scan_dir = results_dir / analysis_id
@@ -330,17 +331,27 @@ async def download_report(
         analysis_service = AnalysisService()
         basicstatic_path = analysis_service.basicstatic_path
         advancestatic_path = analysis_service.advancestatic_path
+        dynamic_path = analysis_service.dynamic_path
         
         # Get project root for AI scans
         project_root = Path(__file__).parent.parent.parent.parent
         ai_scans_path = project_root / "ai_based_malware_detection"
         
         # Map format to file extension and media type
+        # Dynamic analyzer uses different naming: comprehensive_report.html
         format_map = {
             "html": ("report.html", "text/html", "html"),
             "json": ("report.json", "application/json", "json"),
             "csv": ("report.csv", "text/csv", "csv"),
             "pdf": ("report.pdf", "application/pdf", "pdf")
+        }
+        
+        # Dynamic analyzer uses different file names
+        dynamic_format_map = {
+            "html": ("comprehensive_report.html", "text/html", "html"),
+            "json": ("comprehensive_report.json", "application/json", "json"),
+            "csv": ("comprehensive_report.csv", "text/csv", "csv"),
+            "pdf": ("comprehensive_report.pdf", "application/pdf", "pdf")
         }
         
         if format not in format_map:
@@ -351,13 +362,22 @@ async def download_report(
         
         filename, media_type, file_ext = format_map[format]
         
-        # Try to find the report in basic, advanced static, and AI directories
+        # Try to find the report in basic, advanced static, dynamic, and AI directories
         report_path = None
+        
+        # Check static analyzers first
         for base_path in [basicstatic_path, advancestatic_path, ai_scans_path]:
             potential_path = base_path / "scanned_results" / scan_id / filename
             if potential_path.exists():
                 report_path = potential_path
                 break
+        
+        # Check dynamic analyzer (uses different file names)
+        if not report_path:
+            dynamic_filename, _, _ = dynamic_format_map[format]
+            potential_path = dynamic_path / "scanned_results" / scan_id / dynamic_filename
+            if potential_path.exists():
+                report_path = potential_path
         
         # Check if the report exists
         if not report_path:
@@ -403,16 +423,22 @@ async def get_user_analysis_history(
         
         analysis_history = []
         
-        # 1. Get static analysis results (Basic and Advanced)
+        # 1. Get static analysis results (Basic, Advanced, Dynamic, and AI)
         for engine_name, engine_path in [
             ("Basic Static", project_root / "matrisksBasicStatic"),
             ("Advanced Static", project_root / "matrisksAdvanceStatic"),
+            ("Dynamic Analysis", project_root / "matrisksDynamicAnalyzer"),
             ("AI Malware Detection", project_root / "ai_based_malware_detection")
         ]:
             results_dir = engine_path / "scanned_results"
             if results_dir.exists():
                 for scan_dir in results_dir.iterdir():
-                    if scan_dir.is_dir() and scan_dir.name.startswith("SCAN-"):
+                    # Static analyzers use "SCAN-" prefix, dynamic uses "analysis_" prefix
+                    is_scan_dir = scan_dir.is_dir() and (
+                        scan_dir.name.startswith("SCAN-") or 
+                        scan_dir.name.startswith("analysis_")
+                    )
+                    if is_scan_dir:
                         # Read manifest.json if it exists
                         manifest_path = scan_dir / "manifest.json"
                         manifest_data = {}
@@ -444,9 +470,17 @@ async def get_user_analysis_history(
                         
                         # Check what report formats are available
                         available_formats = []
-                        for format_ext in ["html", "json", "csv", "pdf"]:
-                            if (scan_dir / f"report.{format_ext}").exists():
-                                available_formats.append(format_ext)
+                        
+                        # Dynamic analyzer uses different file names
+                        if engine_name == "Dynamic Analysis":
+                            for format_ext in ["html", "json", "csv"]:
+                                if (scan_dir / f"comprehensive_report.{format_ext}").exists():
+                                    available_formats.append(format_ext)
+                        else:
+                            # Static analyzers use report.* naming
+                            for format_ext in ["html", "json", "csv", "pdf"]:
+                                if (scan_dir / f"report.{format_ext}").exists():
+                                    available_formats.append(format_ext)
                         
                         # Build entry data
                         entry = {
@@ -467,6 +501,13 @@ async def get_user_analysis_history(
                             entry["prediction"] = manifest_data.get("prediction", "unknown")
                             entry["confidence"] = manifest_data.get("confidence", 0.0)
                             entry["risk_level"] = manifest_data.get("risk_level", "unknown")
+                        
+                        # Add Dynamic-specific fields if this is a dynamic scan
+                        if engine_name == "Dynamic Analysis":
+                            entry["total_api_calls"] = manifest_data.get("total_api_calls", 0)
+                            entry["security_score"] = manifest_data.get("security_score", 0.0)
+                            entry["risk_level"] = manifest_data.get("risk_level", "unknown")
+                            entry["analysis_duration"] = manifest_data.get("analysis_duration", "N/A")
                         
                         analysis_history.append(entry)
         

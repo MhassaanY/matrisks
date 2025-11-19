@@ -1,0 +1,29 @@
+# Dynamic Analysis Dependencies for Matrisks Framework
+
+# Core Frida framework for runtime instrumentation
+frida==16.1.4
+frida-tools==12.2.1
+
+# Android app analysis
+androguard>=4.1.2
+
+# Configuration management
+pyyaml>=6.0.1
+
+# System monitoring and process management
+psutil>=5.9.5
+
+# Network utilities
+requests>=2.31.0
+
+# Async support
+asyncio>=3.4.3
+
+# Progress bars for CLI
+tqdm>=4.66.1
+
+# Logging enhancements
+colorlog>=6.8.0
+
+# Phase 2: UI Automation & System Monitoring
+# uiautomator2 REMOVED - using pure ADB commands instead (more reliable, no warnings)

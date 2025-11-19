@@ -65,9 +65,9 @@ const Analysis = () => {
       return;
     }
 
-    // Check file size (limit to 100MB)
-    if (selectedFile.size > 100 * 1024 * 1024) {
-      setError('File size exceeds 100MB limit.');
+    // Check file size (limit to 400MB)
+    if (selectedFile.size > 400 * 1024 * 1024) {
+      setError('File size exceeds 400MB limit.');
       return;
     }
 
@@ -214,7 +214,21 @@ const Analysis = () => {
       };
     }
     
-    // Standard static analysis results
+    // Dynamic analysis results - has comprehensive reports in HTML, JSON, and CSV
+    if (apiResult.analysis_type === 'dynamic') {
+      return {
+        analysisType: 'dynamic',
+        timestamp: apiResult.timestamp,
+        fileInfo: apiResult.file_info || {},
+        htmlReport: apiResult.report_content?.html_report || null,
+        jsonReport: apiResult.report_content?.json_report || null,
+        csvReport: apiResult.report_content?.csv_report || null,
+        rawOutput: apiResult.raw_output || '',
+        reportPath: apiResult.report_path || apiResult.analysis_id || null
+      };
+    }
+    
+    // Standard static analysis results (basic/advanced)
     return {
       analysisType: apiResult.analysis_type,
       timestamp: apiResult.timestamp,
@@ -275,7 +289,7 @@ const Analysis = () => {
       return;
     }
 
-    // For static scans (basic/advanced)
+    // For static scans (basic/advanced) and dynamic scans
     if (!analysisResult?.reportPath) {
       setError('Report path not available for download');
       return;
@@ -306,7 +320,9 @@ const Analysis = () => {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `security_report_${scanId}.${reportFormat}`;
+        // Use appropriate filename based on analysis type
+        const filePrefix = analysisResult.analysisType === 'dynamic' ? 'dynamic_analysis' : 'security_report';
+        a.download = `${filePrefix}_${scanId}.${reportFormat}`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
@@ -329,7 +345,7 @@ const Analysis = () => {
 
   // Get available report formats based on analysis type
   const getAvailableFormats = () => {
-    if (analysisType.toLowerCase() === 'advanced') {
+    if (analysisType.toLowerCase() === 'advanced' || analysisType.toLowerCase() === 'dynamic') {
       return ['html', 'json', 'csv'];
     } else {
       return ['html']; // Basic analysis only supports HTML

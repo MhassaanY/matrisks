@@ -216,7 +216,7 @@ def generate_findings_table(findings: Dict[str, Dict], category: str = "Findings
         suggestion = finding.get('suggestion', 'No specific recommendation available')
         risk = finding.get('risk', 'N/A')
         confidence = finding.get('confidence', 'N/A')
-        vector = finding.get('vector_name', 'N/A').split('.')[-1]
+        vector = (finding.get('vector_name') or 'N/A').split('.')[-1]
         cwe = finding.get('cwe', 'N/A')
         owasp = finding.get('owasp_mobile', 'N/A')
         
@@ -422,14 +422,88 @@ def generate_html_dashboard(report_data: Dict[str, Any]) -> str:
     Generate complete professional HTML dashboard
     Clean black/white design with color-coded vulnerabilities
     """
-    app_info = report_data.get('app_info', {})
-    security_analysis = report_data.get('security_analysis', {})
-    manifest_analysis = report_data.get('manifest_analysis', {})
-    findings = report_data.get('findings', {})
-    all_findings = findings.get('all_findings', {})
-    categorized = findings.get('categorized', {})
-    performance = report_data.get('performance_metrics', {})
-    report_info = report_data.get('report_info', {})
+    # Normalize legacy report formats: older saved JSONs use
+    # { "metadata": {...}, "findings": [ ... ] }
+    findings_raw = report_data.get('findings', {})
+
+    if isinstance(findings_raw, list):
+        # Convert legacy list into v2-shaped findings dict
+        legacy_list = findings_raw
+        all_findings = {}
+        severity_counts = {}
+        for f in legacy_list:
+            fid = f.get('id') or f.get('vector') or f.get('title') or str(len(all_findings))
+            mapped = {
+                'level': f.get('severity', f.get('level', 'Info')),
+                'title': f.get('title', ''),
+                'summary': f.get('summary', ''),
+                'details': f.get('details', f.get('vector_details', '')),
+                'vector_name': f.get('vector', f.get('vector_name', '')),
+                'suggestion': f.get('suggestion', ''),
+                'risk': f.get('risk', ''),
+                'confidence': f.get('confidence', ''),
+                'cwe': f.get('cwe', ''),
+                'owasp_mobile': f.get('owasp_mobile', '')
+            }
+            all_findings[fid] = mapped
+            sev = mapped.get('level', 'Info')
+            severity_counts[sev] = severity_counts.get(sev, 0) + 1
+
+        findings = {
+            'all_findings': all_findings,
+            'categorized': {}
+        }
+
+        # Build minimal sections expected by the HTML generator
+        metadata = report_data.get('metadata', {}) or report_data.get('app_info', {})
+        app_info = {
+            'package_name': metadata.get('package_name', metadata.get('app_name', 'N/A')),
+            'version_name': metadata.get('package_version_name', metadata.get('version_name', 'N/A')),
+            'version_code': metadata.get('package_version_code', metadata.get('version_code', 'N/A')),
+            'min_sdk': metadata.get('minSdk', 'N/A'),
+            'target_sdk': metadata.get('targetSdk', 'N/A'),
+            'file_size_mb': metadata.get('file_size_mb', metadata.get('apk_file_size', 0)),
+            'md5': metadata.get('file_md5', metadata.get('md5', '')),
+            'sha1': metadata.get('file_sha1', ''),
+            'sha256': metadata.get('file_sha256', '')
+        }
+
+        security_analysis = {
+            'security_score': 0,
+            'security_grade': 'N/A',
+            'total_issues': len(all_findings),
+            'severity_distribution': severity_counts,
+            'category_distribution': {},
+            'high_risk_count': severity_counts.get('Critical', 0),
+            'medium_risk_count': severity_counts.get('Warning', 0),
+            'low_risk_count': severity_counts.get('Notice', 0),
+            'info_count': severity_counts.get('Info', 0),
+        }
+
+        manifest_analysis = report_data.get('manifest_analysis', {}) or {}
+        performance = report_data.get('performance_metrics', {}) or {}
+        report_info = report_data.get('report_info', {}) or report_data.get('metadata', {})
+
+        # Replace report_data with a normalized structure so downstream
+        # code can assume the v2 report layout
+        report_data = {
+            'app_info': app_info,
+            'security_analysis': security_analysis,
+            'manifest_analysis': manifest_analysis,
+            'findings': findings,
+            'performance_metrics': performance,
+            'report_info': report_info
+        }
+        categorized = findings.get('categorized', {})
+    else:
+        app_info = report_data.get('app_info', {})
+        security_analysis = report_data.get('security_analysis', {})
+        manifest_analysis = report_data.get('manifest_analysis', {})
+        findings = report_data.get('findings', {})
+        all_findings = findings.get('all_findings', {})
+        categorized = findings.get('categorized', {})
+        performance = report_data.get('performance_metrics', {})
+        report_info = report_data.get('report_info', {})
     
     # Generate sections
     executive_summary = generate_executive_summary(report_data)

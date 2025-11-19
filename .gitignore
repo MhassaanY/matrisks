@@ -66,3 +66,5 @@ coverage/
 
 # TypeScript
 *.tsbuildinfo
+apk/
+matrisksDynamicAnalyzer/scanned_results/

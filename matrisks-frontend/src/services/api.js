@@ -100,13 +100,18 @@ async function apiRequest(endpoint, options = {}) {
     let responseData;
     const contentType = response.headers.get('content-type');
     
-    if (contentType && contentType.includes('application/json')) {
-      responseData = await response.json().catch(() => ({
-        message: 'Failed to parse JSON response'
-      }));
-    } else {
+    // Always try JSON first for API responses, regardless of content-type header
+    try {
       const text = await response.text();
-      responseData = { message: text || 'No content' };
+      if (text) {
+        responseData = JSON.parse(text);
+      } else {
+        responseData = { message: 'No content' };
+      }
+    } catch (jsonError) {
+      // If JSON parsing fails, treat as plain text
+      console.warn('Failed to parse response as JSON, treating as text', jsonError);
+      responseData = { message: 'Invalid response format' };
     }
 
     if (!response.ok) {

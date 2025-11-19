@@ -103,7 +103,7 @@ class MatrisksReportGeneratorV2:
             # Enrich with CWE and OWASP mappings
             enriched_finding = enrich_finding_with_classifications(finding_id, finding)
             
-            vector_name = enriched_finding.get('vector_name', '').lower()
+            vector_name = (enriched_finding.get('vector_name') or '').lower()
             
             # Find matching category
             category = 'Other'
@@ -173,7 +173,7 @@ class MatrisksReportGeneratorV2:
         manifest_findings = {}
         
         for finding_id, finding in self.vector_results.items():
-            if 'manifest' in finding.get('vector_name', '').lower() or \
+            if 'manifest' in (finding.get('vector_name') or '').lower() or \
                finding_id in ['DEBUGGABLE', 'ALLOW_BACKUP', 'APP_OVERVIEW_SUMMARY']:
                 manifest_findings[finding_id] = finding
         
@@ -207,7 +207,7 @@ class MatrisksReportGeneratorV2:
         ]
         
         for finding_id, finding in self.vector_results.items():
-            vector_name = finding.get('vector_name', '').lower()
+            vector_name = (finding.get('vector_name') or '').lower()
             if any(cv in vector_name for cv in code_vectors):
                 code_findings[finding_id] = finding
         
@@ -222,7 +222,7 @@ class MatrisksReportGeneratorV2:
         network_findings = {}
         
         for finding_id, finding in self.vector_results.items():
-            vector_name = finding.get('vector_name', '').lower()
+            vector_name = (finding.get('vector_name') or '').lower()
             if any(nv in vector_name for nv in ['ssl', 'http', 'network', 'url']):
                 network_findings[finding_id] = finding
         
@@ -236,7 +236,7 @@ class MatrisksReportGeneratorV2:
         component_findings = {}
         
         for finding_id, finding in self.vector_results.items():
-            if 'component' in finding.get('vector_name', '').lower() or \
+            if 'component' in (finding.get('vector_name') or '').lower() or \
                'EXPORTED' in finding_id or 'ACTIVITY' in finding_id or \
                'SERVICE' in finding_id or 'RECEIVER' in finding_id:
                 component_findings[finding_id] = finding
@@ -251,7 +251,7 @@ class MatrisksReportGeneratorV2:
         storage_findings = {}
         
         for finding_id, finding in self.vector_results.items():
-            vector_name = finding.get('vector_name', '').lower()
+            vector_name = (finding.get('vector_name') or '').lower()
             if any(sv in vector_name for sv in ['storage', 'backup', 'adb', 'sqlite']):
                 storage_findings[finding_id] = finding
         
@@ -276,8 +276,8 @@ class MatrisksReportGeneratorV2:
         }
         
         for finding_id, finding in self.vector_results.items():
-            vector_name = finding.get('vector_name', '').lower()
-            
+            vector_name = (finding.get('vector_name') or '').lower()
+
             for masvs_cat, keywords in categories.items():
                 if any(kw in vector_name for kw in keywords):
                     masvs_mapping[masvs_cat].append(finding_id)

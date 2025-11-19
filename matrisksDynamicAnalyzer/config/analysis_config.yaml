@@ -1,0 +1,69 @@
+# Matrisks Dynamic Analyzer Configuration
+
+# Analysis Settings
+analysis:
+  default_duration: 60  # seconds
+  spawn_mode: true  # true = spawn with Frida (auto-fallback to ADB launch), false = attach to running app
+  create_snapshots: false  # Create clean state snapshots (disabled by default to avoid host-specific snapshot issues)
+  
+  # Phase 2: Enhanced Analysis Features
+  enable_ui_automation: true  # UIAutomator2-based UI exploration (solves 0 API calls issue)
+  enable_logcat: true  # System log monitoring for permissions, intents, etc.
+  ui_exploration_duration: 180  # seconds - how long to explore UI (default: 3 min)
+  ui_max_depth: 50  # Maximum number of UI actions to take
+
+# Emulator Settings
+emulator:
+  avd_name: "Pixel_5_API_30"  # x86_64 AVD with KVM acceleration (auto-switches to ARM if KVM unavailable)
+  avd_name_arm_fallback: "Pixel_5_API_30_ARM"  # ARM AVD for systems without KVM
+  boot_timeout: 300  # seconds
+  snapshot_name: "clean_state"
+  no_window: true  # Headless mode
+  no_audio: true
+
+# Frida Settings
+frida:
+  server_version: "16.1.4"
+  server_arch: "x86_64"  # x86, x86_64, arm, arm64
+  server_path: "/home/mhy/.frida/frida-server-16.1.4-android-x86_64"
+  port: 27042
+
+# Data Collection
+collectors:
+  api_monitor:
+    enabled: true
+    categories:
+      - network
+      - file
+      - crypto
+      - sms
+      - location
+      - contacts
+      - runtime
+      - classloader
+  
+  network_capture:
+    enabled: true
+    use_mitmproxy: false  # Phase 2 feature
+    mitm_port: 8080
+
+# Output Settings
+output:
+  base_dir: "./scanned_results"
+  keep_raw_logs: true
+  generate_html_report: true
+  save_screenshots: false  # Future feature
+
+# SDK Paths (override if not in PATH)
+sdk:
+  android_sdk_root: "/home/mhy/Android/Sdk"  # Android SDK root path
+  adb_path: "/home/mhy/Android/Sdk/platform-tools/adb"
+  emulator_path: "/home/mhy/Android/Sdk/emulator/emulator"
+  aapt_path: "aapt"
+
+# Advanced Settings
+advanced:
+  retry_on_failure: true
+  max_retries: 2
+  cleanup_on_error: true
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR

@@ -37,7 +37,7 @@ class Vector(VectorBase):
                             cls.get_superclassname() == "Lcom/actionbarsherlock/app/SherlockPreferenceActivity;"):
                         boolHas_isValidFragment = False
                         method_isValidFragment = None
-                        for method in cls.get_encoded_methods():
+                        for method in cls.get_methods():
                             if (method.get_name() == "isValidFragment") and (
                                     method.get_descriptor() == "(Ljava/lang/String;)Z"):
                                 boolHas_isValidFragment = True

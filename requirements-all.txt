@@ -1,4 +1,6 @@
 -r matrisks-backend/requirements.txt
 -r matrisksBasicStatic/requirements.txt
 -r matrisksAdvanceStatic/requirements.txt
+-r matrisksDynamicAnalyzer/requirements.txt
+-r ai_based_malware_detection/requirements.txt
 

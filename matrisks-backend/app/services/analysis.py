@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import shutil
 import uuid
+import time
 from pathlib import Path
 from typing import Dict, Any, Optional
 from datetime import datetime
@@ -20,6 +21,7 @@ class AnalysisService:
         repo_root = Path(__file__).parent.parent.parent.parent
         self.basicstatic_path = repo_root / "matrisksBasicStatic"
         self.advancestatic_path = repo_root / "matrisksAdvanceStatic"
+        self.dynamic_path = repo_root / "matrisksDynamicAnalyzer"
 
         # These are set per-run based on analysis_type
         self._engine_path: Optional[Path] = None
@@ -109,7 +111,7 @@ class AnalysisService:
         
     def analyze_apk(self, apk_file_path: str, analysis_type: str = "basic", user_id: int = None, original_filename: str = None) -> Dict[str, Any]:
         """
-        Analyze an APK file using BasicStatic engine or AI malware detection
+        Analyze an APK file using BasicStatic engine, Dynamic Analyzer, or AI malware detection
         
         Args:
             apk_file_path: Path to the APK file
@@ -123,6 +125,10 @@ class AnalysisService:
         # Handle AI malware detection separately
         if analysis_type == "malware":
             return self._analyze_with_ai(apk_file_path, user_id, original_filename)
+        
+        # Handle Dynamic Analysis separately
+        if analysis_type == "dynamic":
+            return self._analyze_with_dynamic(apk_file_path, user_id, original_filename)
             
         try:
             # Extract APK metadata before analysis
@@ -595,3 +601,425 @@ MODEL INFORMATION:
 """
         
         return report
+    
+    def _analyze_with_dynamic(self, apk_file_path: str, user_id: int = None, original_filename: str = None) -> Dict[str, Any]:
+        """
+        Analyze APK using Dynamic Analyzer (Frida-based runtime analysis)
+        
+        Args:
+            apk_file_path: Path to the APK file
+            user_id: ID of the user performing analysis
+            original_filename: Original filename of the uploaded APK
+            
+        Returns:
+            Dictionary containing dynamic analysis results
+        """
+        analysis_dir = None
+        cleanup_performed = False
+        
+        try:
+            logger.info(f"Starting Dynamic Analysis for user {user_id}: {original_filename}")
+            
+            # CRITICAL: Force cleanup of any lingering emulators from previous failed analyses
+            logger.info("Pre-flight check: Cleaning up any stale emulator processes...")
+            self._force_cleanup_emulators()
+            
+            # Extract APK metadata
+            apk_metadata = self._extract_apk_metadata(apk_file_path, original_filename)
+            
+            # Path to Dynamic Analyzer
+            dynamic_analyzer_dir = self.dynamic_path
+            cli_script = dynamic_analyzer_dir / "cli.py"
+            
+            # Use backend venv which has all dependencies including Frida
+            python_path = self.basicstatic_path.parent / "matrisks-backend" / "venv" / "bin" / "python3"
+            
+            if not cli_script.exists():
+                logger.error(f"Dynamic Analyzer CLI not found at {cli_script}")
+                return {
+                    "success": False,
+                    "error": "Dynamic Analyzer not properly configured",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Build command: python cli.py analyze <apk> --duration 60
+            cmd = [
+                str(python_path),
+                str(cli_script),
+                "analyze",
+                apk_file_path,
+                "--duration", "60"  # 60 seconds analysis duration
+            ]
+            
+            logger.info(f"Running Dynamic Analysis command: {' '.join(cmd)}")
+            
+            # Execute the analysis (this will take ~3-4 minutes)
+            logger.info("Executing Dynamic Analyzer CLI (timeout: 10 minutes)...")
+            start_time = datetime.now()
+            
+            result = subprocess.run(
+                cmd,
+                cwd=str(dynamic_analyzer_dir),
+                capture_output=True,
+                text=True,
+                timeout=600  # 10 minute timeout (emulator boot + analysis + report)
+            )
+            
+            execution_time = (datetime.now() - start_time).total_seconds()
+            logger.info(f"CLI execution completed in {execution_time:.1f} seconds with return code {result.returncode}")
+            
+            if result.returncode != 0:
+                logger.error(f"Dynamic Analysis failed with return code {result.returncode}")
+                logger.error(f"Error output: {result.stderr}")
+                
+                # Parse error message for better user feedback
+                error_msg = result.stderr
+                user_friendly_error = "Dynamic Analysis failed"
+                
+                # Check for common issues with detailed detection
+                if "more than one emulator" in error_msg.lower():
+                    user_friendly_error = (
+                        "Multiple emulators detected. Previous analysis may not have cleaned up properly.\n\n"
+                        "💡 This has been automatically fixed. Please try again.\n\n"
+                        "If the issue persists, contact support."
+                    )
+                    # Force cleanup was already done, this shouldn't happen
+                    self._force_cleanup_emulators()
+                elif "Failed to spawn and attach" in error_msg or ("Process com." in error_msg and "not found" in error_msg):
+                    user_friendly_error = (
+                        "App failed to start in emulator. This usually happens when:\n\n"
+                        "• The app is a game or requires native ARM libraries (Unity, Unreal Engine)\n"
+                        "• The app crashes on startup in the emulator environment\n"
+                        "• The app has anti-emulator or anti-debugging protections\n\n"
+                        "💡 Suggestions:\n"
+                        "• Try 'Basic Static Analysis' or 'Advanced Static Analysis' instead\n"
+                        "• These analysis types work on ALL APKs without requiring the app to run\n"
+                        "• Static analysis can still detect most security issues"
+                    )
+                elif "emulator" in error_msg.lower() and ("not found" in error_msg.lower() or "failed to start" in error_msg.lower()):
+                    user_friendly_error = "Android emulator not found or failed to start. Please ensure Android SDK is properly configured."
+                elif "timeout" in error_msg.lower() or "timed out" in error_msg.lower():
+                    user_friendly_error = "Analysis timed out. The app may be too complex, emulator is too slow, or APK is incompatible."
+                elif "frida" in error_msg.lower():
+                    user_friendly_error = "Frida instrumentation failed. The app may have anti-debugging protections."
+                
+                # Ensure cleanup even on CLI failure
+                if not cleanup_performed:
+                    logger.info("Performing emergency cleanup after CLI failure...")
+                    self._emergency_cleanup_dynamic()
+                    cleanup_performed = True
+                
+                return {
+                    "success": False,
+                    "error": user_friendly_error,
+                    "technical_details": error_msg[:500],
+                    "return_code": result.returncode,
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            # Find the latest analysis directory
+            latest_analysis = self._get_latest_dynamic_analysis_directory()
+            analysis_dir = latest_analysis  # Track for cleanup
+            
+            if not latest_analysis:
+                logger.error("Dynamic Analysis completed but no results directory found")
+                return {
+                    "success": False,
+                    "error": "Analysis completed but results not found",
+                    "timestamp": datetime.now().isoformat()
+                }
+            
+            analysis_id = latest_analysis.name
+            logger.info(f"Dynamic Analysis completed successfully: {analysis_id}")
+            
+            # Create/update manifest.json with user info
+            self._update_dynamic_manifest(latest_analysis, apk_metadata, user_id)
+            
+            # Load the comprehensive report
+            report_data = self._load_dynamic_report(latest_analysis)
+            
+            # Parse analysis results
+            analysis_summary = self._parse_dynamic_results(report_data)
+            
+            return {
+                "success": True,
+                "analysis_id": analysis_id,
+                "analysis_type": "dynamic",
+                "timestamp": datetime.now().isoformat(),
+                "file_info": {
+                    "filename": apk_metadata.get("apk_name", "Unknown APK"),
+                    "size": apk_metadata.get("file_size", 0)
+                },
+                "results": analysis_summary,
+                "report": {
+                    "scan_id": analysis_id,
+                    "report_files": {
+                        "html": str(latest_analysis / "comprehensive_report.html"),
+                        "json": str(latest_analysis / "comprehensive_report.json"),
+                        "csv": str(latest_analysis / "comprehensive_report.csv")
+                    }
+                },
+                "report_content": self._get_dynamic_report_content(latest_analysis),
+                "report_path": analysis_id  # Use just the analysis_id for consistent download path
+            }
+                
+        except subprocess.TimeoutExpired:
+            logger.error("Dynamic Analysis timed out after 10 minutes")
+            
+            # CRITICAL: Force cleanup after timeout
+            if not cleanup_performed:
+                logger.error("Timeout occurred - forcing emergency cleanup...")
+                self._emergency_cleanup_dynamic()
+                cleanup_performed = True
+            
+            # Try to find partial results
+            partial_analysis = self._get_latest_dynamic_analysis_directory()
+            has_partial = False
+            if partial_analysis and (partial_analysis / "comprehensive_report.json").exists():
+                has_partial = True
+                logger.info(f"Partial results may be available at: {partial_analysis}")
+            
+            return {
+                "success": False,
+                "error": (
+                    "Dynamic Analysis timed out after 10 minutes. \n\n"
+                    "This usually means:\n"
+                    "• The emulator took too long to boot (slow system)\n"
+                    "• The app is too complex and took longer than expected\n"
+                    "• The app crashed during analysis\n\n"
+                    "💡 Try 'Advanced Static Analysis' for guaranteed results on any APK."
+                ),
+                "has_partial_results": has_partial,
+                "partial_analysis_dir": str(partial_analysis) if has_partial else None,
+                "timestamp": datetime.now().isoformat()
+            }
+        except Exception as e:
+            logger.error(f"Dynamic Analysis failed with exception: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            
+            # Ensure cleanup on unexpected exceptions
+            if not cleanup_performed:
+                logger.error("Exception occurred - forcing emergency cleanup...")
+                self._emergency_cleanup_dynamic()
+                cleanup_performed = True
+            
+            return {
+                "success": False,
+                "error": f"Dynamic Analysis failed: {str(e)}",
+                "technical_details": traceback.format_exc()[:500],
+                "timestamp": datetime.now().isoformat()
+            }
+        finally:
+            # Final safety net - ensure cleanup always happens
+            if not cleanup_performed:
+                logger.info("Final cleanup check...")
+                self._emergency_cleanup_dynamic()
+    
+    def _get_latest_dynamic_analysis_directory(self) -> Optional[Path]:
+        """Get the path to the latest dynamic analysis directory"""
+        try:
+            results_dir = self.dynamic_path / "scanned_results"
+            if not results_dir.exists():
+                return None
+            
+            # Find the most recent analysis directory (starts with "analysis_")
+            analysis_dirs = [d for d in results_dir.iterdir() if d.is_dir() and d.name.startswith("analysis_")]
+            if not analysis_dirs:
+                return None
+            
+            return max(analysis_dirs, key=lambda x: x.stat().st_mtime)
+        except Exception as e:
+            logger.warning(f"Failed to get latest dynamic analysis directory: {e}")
+            return None
+    
+    def _update_dynamic_manifest(self, analysis_dir: Path, apk_metadata: Dict[str, Any], user_id: int = None, error: str = None, partial: bool = False) -> None:
+        """Update or create manifest.json in dynamic analysis directory"""
+        try:
+            manifest_path = analysis_dir / "manifest.json"
+            
+            # Read existing manifest if it exists (from Dynamic Analyzer)
+            existing_data = {}
+            if manifest_path.exists():
+                try:
+                    with open(manifest_path, 'r') as f:
+                        existing_data = json.load(f)
+                except:
+                    pass
+            
+            # Create manifest data (merge with existing)
+            manifest_data = {
+                "analysis_type": "Dynamic Analysis",
+                "apk_name": apk_metadata.get("apk_name", "Unknown APK"),
+                "file_size": apk_metadata.get("file_size", 0),
+                "file_path": apk_metadata.get("file_path", ""),
+                "upload_timestamp": apk_metadata.get("upload_timestamp", ""),
+                "user_id": user_id,
+                "created_at": existing_data.get("created_at", datetime.now().isoformat()),
+                "updated_at": datetime.now().isoformat(),
+                "analysis_directory": analysis_dir.name,
+                "status": "failed" if error else ("partial" if partial else "completed"),
+                "error": error,
+                "partial_results": partial
+            }
+            
+            # Merge with existing data (preserve Dynamic Analyzer's data)
+            manifest_data.update(existing_data)
+            manifest_data["user_id"] = user_id  # Ensure user_id is set
+            if error:
+                manifest_data["error"] = error
+                manifest_data["status"] = "failed"
+            if partial:
+                manifest_data["partial_results"] = True
+            
+            # Write manifest
+            with open(manifest_path, 'w') as f:
+                json.dump(manifest_data, f, indent=4)
+            
+            logger.info(f"Created manifest.json for dynamic analysis: {analysis_dir.name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to create dynamic analysis manifest: {e}")
+    
+    def _load_dynamic_report(self, analysis_dir: Path) -> Dict[str, Any]:
+        """Load comprehensive_report.json from dynamic analysis"""
+        try:
+            json_report_path = analysis_dir / "comprehensive_report.json"
+            if json_report_path.exists():
+                with open(json_report_path, 'r') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.warning(f"Failed to load dynamic report JSON: {e}")
+        return {}
+    
+    def _parse_dynamic_results(self, report_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Parse dynamic analysis results to extract key metrics"""
+        try:
+            return {
+                "package_name": report_data.get("app_info", {}).get("package_name", "Unknown"),
+                "total_api_calls": report_data.get("statistics", {}).get("total_calls", 0),
+                "sensitive_apis": report_data.get("statistics", {}).get("by_category", {}).get("sensitive", 0),
+                "network_requests": report_data.get("statistics", {}).get("by_category", {}).get("network", 0),
+                "file_operations": report_data.get("statistics", {}).get("by_category", {}).get("file", 0),
+                "security_score": report_data.get("security_analysis", {}).get("security_score", 0),
+                "security_grade": report_data.get("security_analysis", {}).get("security_grade", "N/A"),
+                "risk_level": report_data.get("security_analysis", {}).get("risk_level", "Unknown"),
+                "findings": {
+                    "critical": len([f for f in report_data.get("findings", []) if f.get("severity") == "Critical"]),
+                    "high": len([f for f in report_data.get("findings", []) if f.get("severity") == "High"]),
+                    "medium": len([f for f in report_data.get("findings", []) if f.get("severity") == "Medium"]),
+                    "low": len([f for f in report_data.get("findings", []) if f.get("severity") == "Low"])
+                },
+                "analysis_duration": report_data.get("metadata", {}).get("total_duration", "Unknown")
+            }
+        except Exception as e:
+            logger.warning(f"Failed to parse dynamic results: {e}")
+            return {}
+    
+    def _get_dynamic_report_content(self, analysis_dir: Path) -> Dict[str, Any]:
+        """Get the content of dynamic analysis report files"""
+        try:
+            content = {}
+            
+            # Read HTML report
+            html_report_path = analysis_dir / "comprehensive_report.html"
+            if html_report_path.exists():
+                with open(html_report_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content["html_report"] = f.read()
+            
+            # Read JSON report
+            json_report_path = analysis_dir / "comprehensive_report.json"
+            if json_report_path.exists():
+                with open(json_report_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content["json_report"] = f.read()
+            
+            # Read CSV report
+            csv_report_path = analysis_dir / "comprehensive_report.csv"
+            if csv_report_path.exists():
+                with open(csv_report_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content["csv_report"] = f.read()
+                    
+            return content
+            
+        except Exception as e:
+            logger.warning(f"Failed to get dynamic report content: {e}")
+            return {}
+    
+    def _force_cleanup_emulators(self) -> None:
+        """
+        Force cleanup of any lingering emulator processes
+        This prevents 'more than one emulator' errors
+        """
+        try:
+            import psutil
+            killed_count = 0
+            
+            # Kill all qemu-system and emulator processes
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    name = proc.info.get('name', '') or ''
+                    cmdline = ' '.join(proc.info.get('cmdline') or [])
+                    
+                    if 'qemu-system' in name or 'qemu-system' in cmdline or ('emulator' in name and 'avd' in cmdline.lower()):
+                        logger.info(f"Force killing stale emulator process: PID {proc.info['pid']} ({name})")
+                        proc.kill()
+                        proc.wait(timeout=3)
+                        killed_count += 1
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                    pass
+            
+            if killed_count > 0:
+                logger.info(f"Cleaned up {killed_count} stale emulator process(es)")
+                time.sleep(2)  # Give system time to clean up
+            
+            # Also restart ADB server to clear device list
+            try:
+                adb_path = Path.home() / "Android" / "Sdk" / "platform-tools" / "adb"
+                if adb_path.exists():
+                    subprocess.run([str(adb_path), 'kill-server'], capture_output=True, timeout=5)
+                    time.sleep(1)
+                    subprocess.run([str(adb_path), 'start-server'], capture_output=True, timeout=5)
+                    logger.info("ADB server restarted")
+            except Exception as e:
+                logger.warning(f"Could not restart ADB server: {e}")
+                
+        except Exception as e:
+            logger.warning(f"Error during emulator cleanup: {e}")
+    
+    def _emergency_cleanup_dynamic(self) -> None:
+        """
+        Emergency cleanup after failed/timeout dynamic analysis
+        Ensures no processes are left running
+        """
+        logger.info("Performing emergency cleanup of Dynamic Analyzer resources...")
+        
+        try:
+            # 1. Force cleanup emulators
+            self._force_cleanup_emulators()
+            
+            # 2. Kill any Python processes running Dynamic Analyzer CLI
+            import psutil
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    cmdline = ' '.join(proc.info.get('cmdline') or [])
+                    if 'matrisksDynamicAnalyzer' in cmdline and 'cli.py' in cmdline:
+                        logger.info(f"Killing Dynamic Analyzer CLI process: PID {proc.info['pid']}")
+                        proc.kill()
+                        proc.wait(timeout=3)
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.TimeoutExpired):
+                    pass
+            
+            # 3. Stop any Frida servers
+            for proc in psutil.process_iter(['pid', 'name']):
+                try:
+                    if proc.info.get('name') == 'frida-server':
+                        logger.info(f"Killing Frida server: PID {proc.info['pid']}")
+                        proc.kill()
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            
+            logger.info("Emergency cleanup completed")
+            time.sleep(1)
+            
+        except Exception as e:
+            logger.error(f"Emergency cleanup failed: {e}")

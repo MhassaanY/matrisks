@@ -131,6 +131,20 @@ async def get_analysis_engines(
             "last_updated": datetime.fromtimestamp(advanced_static_path.stat().st_mtime).isoformat()
         })
     
+    # Check for Dynamic Analysis Engine
+    dynamic_path = project_root / "matrisksDynamicAnalyzer"
+    if dynamic_path.exists():
+        engines.append({
+            "id": "dynamic",
+            "name": "Dynamic Analysis",
+            "description": "Real-time behavior monitoring and runtime threat detection using Android emulator and Frida instrumentation",
+            "status": "active",
+            "version": "1.0.0",
+            "path": str(dynamic_path),
+            "supported_formats": ["html", "json", "csv"],
+            "last_updated": datetime.fromtimestamp(dynamic_path.stat().st_mtime).isoformat()
+        })
+    
     # Check for AI-based Malware Detection Engine
     ai_malware_path = project_root / "ai_based_malware_detection"
     if ai_malware_path.exists():
@@ -186,16 +200,18 @@ async def get_analysis_history(
     
     analysis_history = []
     
-    # 1. Scan both basic, advanced static, and AI directories for analysis results
+    # 1. Scan basic, advanced static, dynamic, and AI directories for analysis results
     for engine_name, engine_path in [
         ("Basic Static", project_root / "matrisksBasicStatic"),
         ("Advanced Static", project_root / "matrisksAdvanceStatic"),
+        ("Dynamic Analysis", project_root / "matrisksDynamicAnalyzer"),
         ("AI Malware Detection", project_root / "ai_based_malware_detection")
     ]:
         results_dir = engine_path / "scanned_results"
         if results_dir.exists():
             for scan_dir in results_dir.iterdir():
-                if scan_dir.is_dir() and scan_dir.name.startswith("SCAN-"):
+                # Check for both SCAN- prefix (static) and analysis_ prefix (dynamic)
+                if scan_dir.is_dir() and (scan_dir.name.startswith("SCAN-") or scan_dir.name.startswith("analysis_")):
                     # Read manifest.json if it exists
                     manifest_path = scan_dir / "manifest.json"
                     manifest_data = {}
@@ -205,17 +221,39 @@ async def get_analysis_history(
                                 manifest_data = json.load(f)
                         except Exception as e:
                             print(f"Failed to read manifest for {scan_dir.name}: {e}")
-                            continue
                     
-                    # Get file info from manifest
+                    # Get file info from manifest or try to extract from comprehensive_report.json (dynamic)
                     apk_name = manifest_data.get("apk_name", "Unknown APK")
                     file_size = manifest_data.get("file_size", 0)
                     
+                    # For dynamic analysis without manifest, try to get info from comprehensive_report.json
+                    if engine_name == "Dynamic Analysis" and not manifest_data:
+                        comprehensive_report_path = scan_dir / "comprehensive_report.json"
+                        if comprehensive_report_path.exists():
+                            try:
+                                with open(comprehensive_report_path, 'r') as f:
+                                    report_data = json.load(f)
+                                    apk_name = report_data.get("app_info", {}).get("package_name", "Unknown APK")
+                                    file_size = 0  # Not available in comprehensive report
+                            except Exception as e:
+                                print(f"Failed to read comprehensive report for {scan_dir.name}: {e}")
+                    
+                    # Skip if we couldn't get basic info
+                    if apk_name == "Unknown APK" and not manifest_data:
+                        continue
+                    
                     # Check what report formats are available
                     available_formats = []
-                    for format_ext in ["html", "json", "csv", "pdf"]:
-                        if (scan_dir / f"report.{format_ext}").exists():
-                            available_formats.append(format_ext)
+                    if engine_name == "Dynamic Analysis":
+                        # Dynamic analysis uses comprehensive_report.* naming
+                        for format_ext in ["html", "json", "csv"]:
+                            if (scan_dir / f"comprehensive_report.{format_ext}").exists():
+                                available_formats.append(format_ext)
+                    else:
+                        # Static and AI use report.* naming
+                        for format_ext in ["html", "json", "csv", "pdf"]:
+                            if (scan_dir / f"report.{format_ext}").exists():
+                                available_formats.append(format_ext)
                     
                     # Build entry data
                     entry = {
@@ -225,7 +263,7 @@ async def get_analysis_history(
                         "analysis_type": engine_name,
                         "timestamp": manifest_data.get("created_at", 
                             datetime.fromtimestamp(scan_dir.stat().st_mtime).isoformat()),
-                        "status": "completed",
+                        "status": manifest_data.get("status", "completed"),
                         "available_formats": available_formats,
                         "scan_path": str(scan_dir),
                         "user": f"User {manifest_data.get('user_id', 'Unknown')}",

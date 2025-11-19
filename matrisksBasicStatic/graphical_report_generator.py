@@ -150,6 +150,42 @@ def generate_html_report(metadata, vulnerabilities, raw_report_text, output_path
 def generate_pdf_report(html_path, pdf_path):
     HTML(html_path).write_pdf(pdf_path)
 
+def generate_json_report(metadata, vulnerabilities, output_json_path):
+    """Generate JSON format report"""
+    import json
+    
+    report_data = {
+        "metadata": metadata,
+        "vulnerabilities": vulnerabilities,
+        "summary": {
+            "total_count": len(vulnerabilities),
+            "critical_count": sum(1 for v in vulnerabilities if v.get("severity") == "Critical"),
+            "warning_count": sum(1 for v in vulnerabilities if v.get("severity") == "Warning"),
+            "notice_count": sum(1 for v in vulnerabilities if v.get("severity") == "Notice"),
+            "info_count": sum(1 for v in vulnerabilities if v.get("severity") == "Info")
+        }
+    }
+    
+    with open(output_json_path, 'w', encoding='utf-8') as f:
+        json.dump(report_data, f, indent=2, ensure_ascii=False)
+
+def generate_csv_report(metadata, vulnerabilities, output_csv_path):
+    """Generate CSV format report"""
+    import csv
+    
+    with open(output_csv_path, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        
+        # Write header
+        writer.writerow(['Severity', 'Title', 'Description'])
+        
+        # Write vulnerabilities
+        for vuln in vulnerabilities:
+            severity = vuln.get('severity', 'Info')
+            title = vuln.get('title', 'N/A')
+            description = vuln.get('description', 'N/A')
+            writer.writerow([severity, title, description])
+
 def main(report_path, output_html_path):
     with open(report_path, 'r', encoding='utf-8') as f:
         report_content = f.read()
@@ -161,6 +197,14 @@ def main(report_path, output_html_path):
 
     pdf_path = output_html_path.replace(".html", ".pdf")
     generate_pdf_report(output_html_path, pdf_path)
+    
+    # Generate JSON report
+    json_path = output_html_path.replace(".html", ".json")
+    generate_json_report(metadata, vulnerabilities, json_path)
+    
+    # Generate CSV report
+    csv_path = output_html_path.replace(".html", ".csv")
+    generate_csv_report(metadata, vulnerabilities, csv_path)
 
 if __name__ == '__main__':
     # Example usage:
