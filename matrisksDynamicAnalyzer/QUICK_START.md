@@ -86,12 +86,12 @@ python cli.py analyze app.apk --mitm-proxy --ui-duration 60
 ```
 
 **Without MITM:**
-- ✅ URLs: 100%
+-  URLs: 100%
 - ❌ Bodies: 0%
 
 **With MITM:**
-- ✅ URLs: 100%
-- ✅ Bodies: 80%+
+-  URLs: 100%
+-  Bodies: 80%+
 
 ## Troubleshooting
 

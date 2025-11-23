@@ -116,8 +116,8 @@ const AIStatsDashboard = () => {
                 Status: <strong>{aiHealth.status || 'Unknown'}</strong>
               </div>
               <div className={styles.healthDetails}>
-                <span>AI Available: {aiHealth.ai_available ? '✅' : '❌'}</span>
-                <span>Model Loaded: {aiHealth.predictor_loaded ? '✅' : '❌'}</span>
+                <span>AI Available: {aiHealth.ai_available ? '' : '❌'}</span>
+                <span>Model Loaded: {aiHealth.predictor_loaded ? '' : '❌'}</span>
               </div>
             </div>
           </div>
@@ -147,7 +147,7 @@ const AIStatsDashboard = () => {
             <div className={styles.statCard}>
               <div className={styles.statNumber}>{stats.benign_detected}</div>
               <div className={styles.statLabel}>Benign Files</div>
-              <div className={styles.statIcon}>✅</div>
+              <div className={styles.statIcon}></div>
             </div>
 
             <div className={styles.statCard}>
@@ -199,7 +199,7 @@ const AIStatsDashboard = () => {
                       analysis.prediction === 'malware' ? styles.malware : styles.benign
                     }`}
                   >
-                    {analysis.prediction === 'malware' ? '🦠 Malware' : '✅ Benign'}
+                    {analysis.prediction === 'malware' ? '🦠 Malware' : ' Benign'}
                   </div>
                   <div className={styles.confidence}>
                     {(analysis.confidence * 100).toFixed(1)}% confidence

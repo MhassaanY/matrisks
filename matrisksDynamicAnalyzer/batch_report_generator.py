@@ -23,7 +23,7 @@ def generate_report_for_directory(analysis_dir: str, verbose: bool = True):
         report_paths = generator.save_all_reports()
         
         if verbose:
-            print(f"\n✅ Reports generated successfully!")
+            print(f"\n Reports generated successfully!")
             print(f"   - JSON:  {os.path.basename(report_paths['json'])}")
             print(f"   - CSV:   {os.path.basename(report_paths['csv'])}")
             print(f"   - HTML:  {os.path.basename(report_paths['html'])}")
@@ -174,7 +174,7 @@ Examples:
         print(f"\n{'='*70}")
         print(f"📈 Summary:")
         print(f"   Total processed: {len(analyses_to_process)}")
-        print(f"   ✅ Successful:   {successful}")
+        print(f"    Successful:   {successful}")
         if failed > 0:
             print(f"   ❌ Failed:       {failed}")
         print(f"{'='*70}\n")

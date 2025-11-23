@@ -169,7 +169,7 @@ class DynamicAnalysisOrchestrator:
             logger.warning("   • Deprecated APIs removed")
             logger.warning("   • Security policy changes")
             logger.warning("")
-            logger.warning("✅ SOLUTION: Create a lower API level AVD")
+            logger.warning(" SOLUTION: Create a lower API level AVD")
             logger.warning("")
             logger.warning("   Option 1: API 22 (Android 5.1) - Best match for this app")
             logger.warning(f"   $ avdmanager create avd -n Pixel_5_API_22 -k 'system-images;android-22;google_apis;x86_64'")

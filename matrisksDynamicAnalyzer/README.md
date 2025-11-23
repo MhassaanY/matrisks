@@ -5,13 +5,13 @@ Dynamic analysis module for the Matrisks Android security analysis framework. Pr
 ## Features
 
 ### Current (Phase 2.5 - Hybrid HTTPS Interception)
-- ✅ Emulator-based sandboxed execution
-- ✅ Frida instrumentation for API monitoring (215+ APIs)
-- ✅ **Hybrid HTTPS Interception**:
-  - ✅ **URL metadata capture** (100% success rate)
-  - ✅ **Cronet/gRPC detection** (intelligent detection)
-  - ✅ **Optional MITM mode** for body capture (user choice via `--mitm-proxy`)
-- ✅ Sensitive API call tracking:
+-  Emulator-based sandboxed execution
+-  Frida instrumentation for API monitoring (215+ APIs)
+-  **Hybrid HTTPS Interception**:
+  -  **URL metadata capture** (100% success rate)
+  -  **Cronet/gRPC detection** (intelligent detection)
+  -  **Optional MITM mode** for body capture (user choice via `--mitm-proxy`)
+-  Sensitive API call tracking:
   - Network operations (HTTP, OkHttp, URL connections)
   - File I/O operations (read, write, delete)
   - Cryptography (Cipher, MessageDigest)
@@ -20,23 +20,23 @@ Dynamic analysis module for the Matrisks Android security analysis framework. Pr
   - Contacts access
   - Runtime command execution
   - Dynamic class loading
-- ✅ **Intelligent UI Exploration** (network-button prioritization)
-- ✅ **Pre-hook Startup** (spawn-paused execution)
-- ✅ **Logcat Analysis** (intent/permission extraction)
-- ✅ Automated APK installation and analysis
-- ✅ Emulator snapshot management
-- ✅ JSON report generation
-- ✅ CLI interface
+-  **Intelligent UI Exploration** (network-button prioritization)
+-  **Pre-hook Startup** (spawn-paused execution)
+-  **Logcat Analysis** (intent/permission extraction)
+-  Automated APK installation and analysis
+-  Emulator snapshot management
+-  JSON report generation
+-  CLI interface
 
 ### ⚠️ IMPORTANT: HTTPS Body Capture
 
 **Without `--mitm-proxy` flag:**
-- ✅ **URL metadata**: 100% captured (all network requests detected)
+-  **URL metadata**: 100% captured (all network requests detected)
 - ❌ **Request/response bodies**: 0% captured
 
 **With `--mitm-proxy` flag:**
-- ✅ **URL metadata**: 100% captured
-- ✅ **Request/response bodies**: 80%+ captured
+-  **URL metadata**: 100% captured
+-  **Request/response bodies**: 80%+ captured
 
 **Why?** Apps using Firebase, Cronet, or gRPC bypass standard Java SSL APIs.
 
@@ -99,13 +99,13 @@ python setup.py
 ```
 
 This script automatically:
-1. ✅ Downloads and installs Android SDK command-line tools (~100MB)
-2. ✅ Installs system image for Android 11 (~800MB)
-3. ✅ Creates optimized AVD (Pixel 5 emulator)
-4. ✅ Downloads Frida server for Android
-5. ✅ Installs all Python dependencies
-6. ✅ Creates configuration file
-7. ✅ Verifies setup with tests
+1.  Downloads and installs Android SDK command-line tools (~100MB)
+2.  Installs system image for Android 11 (~800MB)
+3.  Creates optimized AVD (Pixel 5 emulator)
+4.  Downloads Frida server for Android
+5.  Installs all Python dependencies
+6.  Creates configuration file
+7.  Verifies setup with tests
 
 **Time:** ~10-15 minutes (depending on internet speed)
 

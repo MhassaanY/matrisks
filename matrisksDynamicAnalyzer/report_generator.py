@@ -1991,7 +1991,7 @@ class DynamicReportGenerator:
         report_paths['html'] = html_path
         
         print("=" * 60)
-        print(f"✅ All reports generated successfully!")
+        print(f" All reports generated successfully!")
         print(f"📁 Location: {self.analysis_dir}")
         
         return report_paths
